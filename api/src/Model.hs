@@ -20,47 +20,26 @@ import GHC.Generics
 import Data.Time.Clock(UTCTime)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-
 Device json
-    idDevice Int
     ip String
-    userId String
-    Primary idDevice
-    Foreign User fkUserId userId
-
+    userId UserId
 User json
     email String
     password String
-    deviceId Int
+    deviceId DeviceId
     Primary email
-    Foreign Device fkDeviceId deviceId
     deriving Eq Show
-
 TreatmentPlan json
-    idTreatmentPlan Int
-    userId String
-    Primary idTreatmentPlan
-    Foreign User fkUserId userId
+    userId UserId
     deriving Eq Show
-
 TreatmentPlanRow json
-    idTreatmentPlanRow Int
     at UTCTime
-    medicamentId Int
-    treatmentPlan Int
-    Primary idTreatmentPlanRow
-    Foreign Medicament fkMedicamentId medicamentId
-    Foreign TreatmentPlan fkTreatmentPlan treatmentPlan
-
+    medicamentId MedicamentId
+    treatmentPlan TreatmentPlanId
 Medicament json
-    idMedicament Int
     name String
     diameter Int
     height Int
     description Text Maybe
-    Primary idMedicament
     deriving Eq Show
-
 |]
-
-  

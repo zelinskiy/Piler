@@ -23,20 +23,27 @@ import qualified Data.Map as Map
 
 import Model
 import qualified MedicamentApi
+import qualified TreatmentPlanApi
 import AuthApi
 
 sqlitePath = "sqlite.db"
 
-type PrivateApi = MedicamentApi.API
+type PrivateApi =
+       "medicament" :> MedicamentApi.API
+  :<|> "treatment"  :> TreatmentPlanApi.API
+  
 type PublicApi = "greeting" :> Get '[JSON] String
 
 type API =
-  "public" :> PublicApi
-  :<|> "private" :> Private :> PrivateApi
+       "public"  :> PublicApi
+  :<|> "private" :> Private   :> PrivateApi
   
 server :: ConnectionPool -> Server API
-server pool = return "Greetings!"
-              :<|> \user -> MedicamentApi.server pool user
+server pool =
+       return "Greetings!"
+  :<|> \user ->
+            MedicamentApi.server pool user
+       :<|> TreatmentPlanApi.server pool user
               
 getConnectionPool :: IO ConnectionPool
 getConnectionPool = do

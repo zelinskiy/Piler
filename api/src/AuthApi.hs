@@ -27,30 +27,33 @@ import Data.List
 import qualified Data.Map as Map
 
 import Model
+import Utils
 
-type instance AuthServerData (AuthProtect "cookie-auth") = User
+type instance AuthServerData (AuthProtect "cookie-auth") = Entity User
 
 type Private = AuthProtect "cookie-auth" 
 
-authContext :: ConnectionPool -> Context (AuthHandler Request User ': '[])
+authContext :: ConnectionPool
+            -> Context (AuthHandler Request (Entity User) ': '[])
 authContext pool = mkAuthHandler handler :. EmptyContext
   where
+    throw401 m = throwError (err401 { errBody = m })
     handler req =
       let h = requestHeaders req in
       case (lookup "email" h, lookup "password" h) of
-        (Nothing, Nothing) ->
-          throwError (err401 { errBody = "Missing email and password" })
+        (Nothing, Nothing) -> 
+          throw401 "Missing password & email"
         (Nothing, Just p) ->
-          throwError (err401 { errBody = "Missing email" })
+          throw401 "Missing email"
         (Just e, Nothing) ->
-          throwError (err401 { errBody = "Missing password" })  
+          throw401 "Missing password"
         (Just e, Just p) -> do
-          mbUser <- liftIO $ flip runSqlPersistMPool pool $
+          mbUser <- exPool pool $
                 selectFirst [ UserEmail    ==. unpack e
                             , UserPassword ==. unpack p] []
                                         
           case mbUser of
-            Just u -> return $ entityVal u
+            Just u -> return u
             Nothing ->
               throwError (err403 { errBody = "Can't find user" })
 

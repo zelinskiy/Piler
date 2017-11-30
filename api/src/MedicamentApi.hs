@@ -13,6 +13,7 @@ import Control.Monad.IO.Class
 import Servant
 
 import Model
+import Utils
 
 type API =
          "all"
@@ -24,20 +25,18 @@ type API =
       :> Capture "id" (Key Medicament)
       :> Delete '[JSON] ()
 
-server :: ConnectionPool -> User -> Server API
-server pool user =
+server :: ConnectionPool -> Entity User -> Server API
+server p me =
        allMedicaments
   :<|> addMedicament
   :<|> deleteMedicament
   where
-    runPool a = liftIO $ flip runSqlPersistMPool pool $ a
-    allMedicaments =
-      liftIO $ flip runSqlPersistMPool pool $ selectList [] []
-    addMedicament med = do
+    allMedicaments = exPool p $ selectList [] []
+    addMedicament med = 
       if all (>0) [medicamentHeight med, medicamentDiameter med]
-      then liftIO $ flip runSqlPersistMPool pool $ insert med
+      then exPool p $ insert med
       else throwError $ err400 {
         errBody = "Diameter and height should be positive" }
     deleteMedicament mid =
-      runPool $ deleteWhere [MedicamentId ==. mid]
+      exPool p $ deleteWhere [MedicamentId ==. mid]
 

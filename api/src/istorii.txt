@@ -1,0 +1,9 @@
+
+liftIO $ flip runSqlPersistMPool pool $ insert e
+================================================
+exPool :: ConnectionPool
+       -> SqlPersistM a
+       -> Handler a
+exPool pool = liftIO . flip runSqlPersistMPool pool
+
+exPool pool $ insert e
