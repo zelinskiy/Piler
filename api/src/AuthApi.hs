@@ -23,6 +23,7 @@ import Network.Wai
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8(unpack)
 import Data.Map (Map, fromList)
+import Data.List
 import qualified Data.Map as Map
 
 import Model
@@ -30,12 +31,6 @@ import Model
 type instance AuthServerData (AuthProtect "cookie-auth") = User
 
 type Private = AuthProtect "cookie-auth" 
-
-database :: [User]
-database =
-  [ User "user1@mail.com" "pass"
-  , User "user2@mail.com" "pass"
-  , User "user3@mail.com" "pass" ]
 
 authContext :: ConnectionPool -> Context (AuthHandler Request User ': '[])
 authContext pool = mkAuthHandler handler :. EmptyContext
@@ -49,11 +44,15 @@ authContext pool = mkAuthHandler handler :. EmptyContext
           throwError (err401 { errBody = "Missing email" })
         (Just e, Nothing) ->
           throwError (err401 { errBody = "Missing password" })  
-        (Just e, Just p) ->
-          let u = User (unpack e) (unpack p) in
-          if u `elem` database
-          then return u
-          else throwError (err403 { errBody = "Can't find user" })
+        (Just e, Just p) -> do
+          mbUser <- liftIO $ flip runSqlPersistMPool pool $
+                selectFirst [ UserEmail    ==. unpack e
+                            , UserPassword ==. unpack p] []
+                                        
+          case mbUser of
+            Just u -> return $ entityVal u
+            Nothing ->
+              throwError (err403 { errBody = "Can't find user" })
 
 
 

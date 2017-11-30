@@ -39,6 +39,7 @@ library
                      , wai
                      , wai-extra
                      , warp
+                     , time
   default-language:    Haskell2010
 
 
