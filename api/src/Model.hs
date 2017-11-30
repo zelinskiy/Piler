@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Model where
 
@@ -15,6 +16,7 @@ import Database.Persist.TH
 import Data.Aeson
 import Data.Aeson.TH
 import Data.Text
+import GHC.Generics
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Medicament json
@@ -25,4 +27,6 @@ Medicament json
     deriving Eq Show
 |]
 
+data User = User { email :: String, password :: String }
+  deriving (Eq, Show, Generic)
   

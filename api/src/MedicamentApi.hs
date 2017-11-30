@@ -24,8 +24,8 @@ type API =
       :> Capture "id" (Key Medicament)
       :> Delete '[JSON] ()
 
-server :: ConnectionPool -> Server API
-server pool =
+server :: ConnectionPool -> User -> Server API
+server pool user =
        allMedicaments
   :<|> addMedicament
   :<|> deleteMedicament

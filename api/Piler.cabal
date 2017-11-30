@@ -18,8 +18,11 @@ library
   exposed-modules:     MainApi
                      , Model
                      , MedicamentApi
+                     , AuthApi
   build-depends:       aeson
                      , base >= 4.7 && < 5
+                     , servant
+                     , containers
                      , bytestring
                      , hspec
                      , hspec-wai
