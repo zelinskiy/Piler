@@ -17,10 +17,11 @@ library
   hs-source-dirs:      src
   exposed-modules:     Model
                      , Utils
+                     , TickTack
                      , MainApi
                      , AuthApi
                      , MedicamentApi
-                     , TreatmentPlanApi
+                     , TreatmentApi
   build-depends:       aeson
                      , base >= 4.7 && < 5
                      , bytestring

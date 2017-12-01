@@ -17,7 +17,7 @@ import Data.Aeson
 import Data.Aeson.TH
 import Data.Text
 import GHC.Generics
-import Data.Time.Clock(UTCTime)
+import Data.Time.Clock(UTCTime, getCurrentTime)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Device json
@@ -26,6 +26,7 @@ Device json
 User json
     email String
     password String
+    status String      default=normal
     deviceId DeviceId
     Primary email
     deriving Eq Show

@@ -7,3 +7,8 @@ exPool :: ConnectionPool
 exPool pool = liftIO . flip runSqlPersistMPool pool
 
 exPool pool $ insert e
+
+
+rlwrap sqlite3 sqlite.db
+.headers on
+.mode column
