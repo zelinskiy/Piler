@@ -1,5 +1,7 @@
 #/bin/sh
 
+#some random shell
+
 sqlite3 sqlite.db  'INSERT INTO user VALUES ("user1@mail.com", "pass", "normal", 0);'
 
 curl -XPOST localhost:8080/private/medicament/add -H "email: user1@mail.com" -H "password: pass" -H "Content-Type: application/json" -d '{"name": "Aspirin", "diameter": 1, "height": 1}'

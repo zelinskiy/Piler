@@ -6,7 +6,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module AuthApi
+module Api.Auth
     ( authContext
     , Private
     ) where

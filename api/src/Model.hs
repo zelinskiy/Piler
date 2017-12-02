@@ -22,11 +22,17 @@ import Data.Time.Clock(UTCTime, getCurrentTime)
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Device json
     ip String
-    userId UserId
+    userId UserId Maybe
+    Primary ip
+DeviceStorage json
+    quantity Int
+    medicamentId MedicamentId
+    deviceId DeviceId
+    Primary medicamentId deviceId
 User json
     email String
     password String
-    status String      default=normal
+    status String
     deviceId DeviceId
     Primary email
     deriving Eq Show

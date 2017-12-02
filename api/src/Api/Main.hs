@@ -5,12 +5,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module MainApi(startApp) where
+module Api.Main(app, startApp) where
 
 import Network.Wai.Handler.Warp
 import Database.Persist.Sqlite
 import Control.Monad.IO.Class
-import Control.Monad.Logger (runStderrLoggingT)
+import Control.Monad.Logger (runStdoutLoggingT)
 import Data.String.Conversions
 import Servant
 import Data.Aeson
@@ -22,32 +22,42 @@ import Data.Map (Map, fromList)
 import qualified Data.Map as Map
 
 import Model
-import qualified MedicamentApi
-import qualified TreatmentApi
-import AuthApi
+import qualified Api.Medicament
+import qualified Api.Treatment
+import qualified Api.Device
+import qualified Api.User
+import Api.Auth
 
 sqlitePath = "sqlite.db"
 
 type PrivateApi =
-       "medicament" :> MedicamentApi.API
-  :<|> "treatment"  :> TreatmentApi.API
+       "medicament" :> Api.Medicament.API
+  :<|> "treatment"  :> Api.Treatment.API
+  :<|> "device"     :> Api.Device.API
+  :<|> "user"       :> Api.User.API
   
-type PublicApi = "greeting" :> Get '[JSON] String
+type PublicApi =
+       "greeting" :> Get '[JSON] String
+  :<|> "user"     :> Api.User.PublicAPI
 
 type API =
        "public"  :> PublicApi
   :<|> "private" :> Private   :> PrivateApi
   
 server :: ConnectionPool -> Server API
-server pool =
-       return "Greetings!"
-  :<|> \user ->
-            MedicamentApi.server pool user
-       :<|> TreatmentApi.server pool user
+server p =
+           (return "Greetings!"
+       :<|> Api.User.publicServer p)
+  :<|> \u ->
+            Api.Medicament.server p u
+       :<|> Api.Treatment.server  p u
+       :<|> Api.Device.server     p u
+       :<|> Api.User.server       p u
+       
               
 getConnectionPool :: IO ConnectionPool
 getConnectionPool = do
-  pool <- runStderrLoggingT $
+  pool <- runStdoutLoggingT $
     createSqlitePool sqlitePath 5
   runSqlPool (runMigration migrateAll) pool
   return pool

@@ -1,7 +1,6 @@
 module Main where
 
-import Api.Main
-import TickTack
+import Lib
 
 main :: IO ()
 main = startApp

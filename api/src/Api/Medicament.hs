@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 
-module MedicamentApi
+module Api.Medicament
     ( API
     , server
     ) where

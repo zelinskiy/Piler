@@ -2,7 +2,7 @@ name:                Piler
 version:             0.1.0.0
 -- synopsis:
 -- description:
-homepage:            https://github.com/githubuser/Piler#readme
+homepage:            https://github.com/zelinskiy/Piler
 license:             BSD3
 license-file:        LICENSE
 author:              Author name here
@@ -18,10 +18,12 @@ library
   exposed-modules:     Model
                      , Utils
                      , TickTack
-                     , MainApi
-                     , AuthApi
-                     , MedicamentApi
-                     , TreatmentApi
+                     , Api.Main
+                     , Api.Auth
+                     , Api.Medicament
+                     , Api.Treatment
+                     , Api.Device
+                     , Api.User
   build-depends:       aeson
                      , base >= 4.7 && < 5
                      , bytestring
@@ -51,7 +53,7 @@ library
 executable Piler-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -fpackage-trust
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       Piler
                      , base
                      , resourcet
@@ -62,7 +64,8 @@ test-suite Piler-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  other-modules:     MedicamentsSpec
+  other-modules:       MedicamentSpec
+                     , TreatmentSpec
   build-depends:       Piler
                      , aeson
                      , base

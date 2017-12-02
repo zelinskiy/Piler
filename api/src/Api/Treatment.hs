@@ -6,7 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module TreatmentApi
+module Api.Treatment
     ( API
     , server
     ) where
@@ -27,9 +27,8 @@ type API =
          "my"
       :> Get '[JSON] [Entity TreatmentPlan]
     :<|> "new"
-      :>      ("plan"
-            :> ReqBody '[JSON] TreatmentPlan
-            :> Post '[JSON] (Key TreatmentPlan)
+      :>      ("plan"            
+            :> Get '[JSON] (Key TreatmentPlan)
           :<|> "row"
             :> ReqBody '[JSON] TreatmentPlanRow
             :> Post '[JSON] (Key TreatmentPlanRow))
@@ -61,7 +60,8 @@ server p me =
   where
     myTreatmentPlans = exPool p $
       selectList [TreatmentPlanUserId ==. entityKey me] []
-    addTreatmentPlan = exPool p . insert
+    addTreatmentPlan = exPool p $ insert $
+      TreatmentPlan { treatmentPlanUserId = entityKey me }
     addTreatmentPlanRow = exPool p . insert
     deleteTreatmentPlan pid = exPool p $
       deleteWhere [TreatmentPlanId ==. pid]
