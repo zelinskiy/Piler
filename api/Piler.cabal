@@ -20,6 +20,7 @@ library
                      , TickTack
                      , Api.Main
                      , Api.Auth
+                     , Api.AuthJWT
                      , Api.Medicament
                      , Api.Treatment
                      , Api.Device
@@ -28,17 +29,21 @@ library
                      , base >= 4.7 && < 5
                      , bytestring
                      , containers
+                     , deepseq
                      , hspec
                      , hspec-wai
                      , hspec-wai-json
                      , http-types
                      , http-types
                      , monad-logger
+                     , mtl
                      , persistent
                      , persistent-sqlite
                      , persistent-template
                      , resourcet
                      , servant
+                     , servant-auth
+                     , servant-auth-server
                      , servant-server
                      , string-conversions
                      , text
@@ -56,8 +61,6 @@ executable Piler-exe
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       Piler
                      , base
-                     , resourcet
-                     , transformers
   default-language:    Haskell2010
 
 test-suite Piler-test
@@ -70,14 +73,16 @@ test-suite Piler-test
                      , aeson
                      , base
                      , bytestring
+                     , deepseq
                      , hspec
                      , hspec-wai
                      , hspec-wai-json
                      , http-types
+                     , mtl
                      , resourcet
                      , string-conversions
                      , transformers
-                     , wai-extra                     
+                     , wai-extra
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 

@@ -33,29 +33,28 @@ type instance AuthServerData (AuthProtect "cookie-auth") = Entity User
 
 type Private = AuthProtect "cookie-auth" 
 
+throw401 m = throwError (err401 { errBody = m })
+
 authContext :: ConnectionPool
-            -> Context (AuthHandler Request (Entity User) ': '[])
-authContext pool = mkAuthHandler handler :. EmptyContext
-  where
-    throw401 m = throwError (err401 { errBody = m })
-    handler req =
-      let h = requestHeaders req in
-      case (lookup "email" h, lookup "password" h) of
-        (Nothing, Nothing) -> 
-          throw401 "Missing password & email"
-        (Nothing, Just p) ->
-          throw401 "Missing email"
-        (Just e, Nothing) ->
-          throw401 "Missing password"
-        (Just e, Just p) -> do
-          mbUser <- exPool pool $
-                selectFirst [ UserEmail    ==. unpack e
+            -> AuthHandler Request (Entity User)
+authContext pool = mkAuthHandler $ \req ->
+  let h = requestHeaders req in
+  case (lookup "email" h, lookup "password" h) of
+    (Nothing, Nothing) -> 
+      throw401 "Missing password & email"
+    (Nothing, Just p) ->
+      throw401 "Missing email"
+    (Just e, Nothing) ->
+      throw401 "Missing password"
+    (Just e, Just p) -> do
+      mbUser <- exPool pool $
+        selectFirst [ UserEmail    ==. unpack e
                             , UserPassword ==. unpack p] []
                                         
-          case mbUser of
-            Just u -> return u
-            Nothing ->
-              throwError (err403 { errBody = "Can't find user" })
+      case mbUser of
+        Just u -> return u
+        Nothing ->
+          throwError (err403 { errBody = "Can't find user" })
 
 
 

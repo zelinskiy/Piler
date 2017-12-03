@@ -34,7 +34,7 @@ spec = with app $ do
     
     
   where
-    root = "/private/treatment"
+    root = "/private2/treatment"
     defHeaders =
       [(hContentType,"application/json")
       , ("email", "user1@mail.com")

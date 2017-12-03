@@ -9,8 +9,13 @@ import Test.Hspec.Wai.JSON
 
 import qualified MedicamentSpec
 import qualified TreatmentSpec
+import qualified AuthJWTSpec
 
---TODO: register before & unregister after
+--TODO: register test@mail.com before & unregister after
 main :: IO ()
 main = do
-  hspec (MedicamentSpec.spec >> TreatmentSpec.spec)
+  hspec $ do
+    AuthJWTSpec.spec
+    MedicamentSpec.spec
+    TreatmentSpec.spec
+    

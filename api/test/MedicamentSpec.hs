@@ -36,7 +36,7 @@ spec = with app $ do
       addTestItemRequest "TestItem" 0 1
         `shouldRespondWith` 400
   where
-    root = "/private/medicament"
+    root = "/private2/medicament"
     defHeaders =
       [(hContentType,"application/json")
       , ("email", "user1@mail.com")
