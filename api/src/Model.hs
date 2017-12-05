@@ -19,16 +19,18 @@ import Data.Text
 import GHC.Generics
 import Data.Time.Clock(UTCTime, getCurrentTime)
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+share [mkPersist sqlSettings
+      , mkDeleteCascade sqlSettings
+      , mkMigrate "migrateAll"]
+  [persistLowerCase|
 Device json
     ip String
-    userId UserId Maybe
     Primary ip
     deriving Eq Show
 DeviceStorage json
     quantity Int
     medicamentId MedicamentId
-    deviceId DeviceId
+    deviceId DeviceId 
     Primary medicamentId deviceId
     deriving Eq Show
 User json

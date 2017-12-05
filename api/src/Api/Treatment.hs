@@ -60,10 +60,8 @@ server p me =
     addTreatmentPlan = exPool p $ insert $
       TreatmentPlan { treatmentPlanUserId = entityKey me }
     addTreatmentPlanRow = exPool p . insert
-    deleteTreatmentPlan pid = exPool p $
-      deleteWhere [TreatmentPlanId ==. pid]
-    deleteTreatmentPlanRow rid = exPool p $
-      deleteWhere [TreatmentPlanRowId ==. rid]
+    deleteTreatmentPlan = exPool p . delete
+    deleteTreatmentPlanRow = exPool p . delete
     updateTreatmentPlan pid plan =
       exPool p $ replace pid plan
     updateTreatmentPlanRow rid row =

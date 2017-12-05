@@ -36,12 +36,12 @@ registerSpec rdata = do
 unregisterSpec :: WaiSession ByteString -> SpecWith Application
 unregisterSpec getJwt = do
   describe "User unregistration" $ do
-    let h jwt = [(hContentType,"application/json")
-            , (hAuthorization, "Bearer " <> jwt)]
+    let h jwt = [ (hContentType,"application/json")
+                , (hAuthorization, "Bearer " <> jwt)]
     it "unregisters" $ do
       jwt <- getJwt
-      (request methodPost "/private/user/unregister" (h jwt) ""
-        `shouldRespondWith` 200)
+      request methodGet "/private/user/unregister" (h jwt) ""
+        `shouldRespondWith` 200
     
 
     

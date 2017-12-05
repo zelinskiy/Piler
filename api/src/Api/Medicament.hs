@@ -37,6 +37,5 @@ server p me =
       then exPool p $ insert med
       else throwError $ err400 {
         errBody = "Diameter and height should be positive" }
-    deleteMedicament mid =
-      exPool p $ deleteWhere [MedicamentId ==. mid]
+    deleteMedicament mid = exPool p $ delete mid
 

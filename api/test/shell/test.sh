@@ -22,3 +22,5 @@ curl -XPOST localhost:8080/private2/treatment/new/row -H "email: user1@mail.com"
 curl -v -POST localhost:8080/public/jwt/login -H "Content-Type: application/json" -d '{"username": "user1@mail.com", "password":"pass"}'
 
 curl -v -POST localhost:8080/private/medicament/all -H "Authorization: Bearer JWT"
+
+sqlite3 sqlite.db "DELETE FROM user WHERE email = 'test@mail.com'; DELETE FROM device WHERE ip = '127.0.0.1'"

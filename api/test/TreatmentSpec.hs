@@ -15,35 +15,38 @@ import Network.Wai
 
 import Model
 
-spec :: ByteString -> SpecWith Application
-spec jwt = do
+spec :: WaiSession ByteString -> SpecWith Application
+spec getJwt = do
   describe "treatment" $ do
     it "returns my plans" $ do
-      getAuth (root `mappend` "/my")
+      jwt <- getJwt
+      getAuth jwt (root `mappend` "/my")
         `shouldRespondWith` 200
         
-    it "adds treatment plan" $ do      
-      getAuth (root `mappend` "/new/plan")
+    it "adds treatment plan" $ do
+      jwt <- getJwt
+      getAuth jwt (root `mappend` "/new/plan")
         `shouldRespondWith` 200
         
     it "adds and deletes plan" $ do
-      pid <- cs <$> simpleBody <$> getAuth (root `mappend` "/new/plan")
-      deleteAuth (root `mappend` "/delete/plan/" `mappend` pid)
+      jwt <- getJwt
+      pid <- cs <$> simpleBody <$> getAuth jwt (root `mappend` "/new/plan")
+      deleteAuth jwt (root `mappend` "/delete/plan/" `mappend` pid)
         `shouldRespondWith` 200
     
   where
     root = "/private/treatment"
-    defHeaders =
+    defHeaders jwt =
       [ (hContentType,"application/json")
       , (hAuthorization, "Bearer " <> jwt)]
-    getAuth route = request methodGet route defHeaders ""
-    deleteAuth route = request methodDelete route defHeaders ""
-    postAuth route body =
-      request methodDelete route defHeaders body
-    addTestItemRequest n d h =
+    getAuth jwt route = request methodGet route (defHeaders jwt) ""
+    deleteAuth jwt route = request methodDelete route (defHeaders jwt) ""
+    postAuth jwt route body =
+      request methodDelete route (defHeaders jwt) body
+    addTestItemRequest jwt n d h =
       request methodPost
       (root `mappend` "/add")
-      defHeaders
+      (defHeaders jwt)
       (encode $ Medicament
         { medicamentName = n
         , medicamentDiameter = d

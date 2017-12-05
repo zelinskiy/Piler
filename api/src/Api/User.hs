@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -47,8 +48,7 @@ server p me =
   where
     getMyself = return me
     unregister = exPool p $
-      deleteWhere [UserId ==. entityKey me]
-      >> return ()
+      deleteCascade (entityKey me)
 
 
 publicServer :: ConnectionPool -> Server PublicAPI
@@ -58,11 +58,9 @@ publicServer p = register
       { email = email
       , pass = pass
       , ip = ip} = exPool p $ do
-      did <- insert $ Device ip Nothing
-      uid <- insert $ User
+      did <- insert $ Device ip
+      insert $ User
         { userEmail = email
         , userPassword = pass
         , userStatus = "normal"
         , userDeviceId = did }
-      update did [DeviceUserId =. Just uid]
-      return uid

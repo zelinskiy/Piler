@@ -30,13 +30,12 @@ findCookie headers cname =
                    && cname `isPrefixOf` cs c
   in not $ null $ filter pred headers
 
-spec :: SpecWith Application
-spec = do
+spec :: Login -> SpecWith Application
+spec login = do
   describe "JWT authentication" $ do
-    let h = [(hContentType,"application/json")]
-        l = encode $ Login "user1@mail.com" "pass"
     it "returns JWT & XSRF tokens" $ do
-      res <- request methodPost "/public/jwt/login" h l
+      res <- request methodPost "/public/jwt/login"
+        [(hContentType,"application/json")] (encode login)
       WaiSession $ do
         assertStatus 204 res
         let hs = simpleHeaders res

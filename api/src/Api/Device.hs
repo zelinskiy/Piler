@@ -40,7 +40,7 @@ server p me =
   where
     myDevice = do 
       mbDevice <- exPool p $
-        selectFirst [DeviceUserId ==. Just (entityKey me)] []
+        selectFirst [DeviceId ==. userDeviceId (entityVal me)] []
       case mbDevice of
         Just d -> return d
         Nothing -> throwError err403
