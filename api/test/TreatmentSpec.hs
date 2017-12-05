@@ -1,5 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module TreatmentSpec (spec) where
 
 import Test.Hspec
@@ -12,26 +13,66 @@ import Network.Wai.Test (simpleBody)
 import Data.String.Conversions
 import Data.Aeson
 import Network.Wai
+import Data.Time.Clock
+import Database.Persist.Sqlite
+import Servant
+import Test.Hspec.Wai.Internal
+import Network.Wai.Test hiding (request)
+import Control.Exception
+import Data.Maybe
 
 import Model
+
+fall msg = liftIO (throwIO (WaiTestFailure msg))
 
 spec :: WaiSession ByteString -> SpecWith Application
 spec getJwt = do
   describe "treatment" $ do
-    it "returns my plans" $ do
+    it "returns all plans" $ do
       jwt <- getJwt
-      getAuth jwt (root `mappend` "/my")
+      getAuth jwt (root <> "/my/plans")
         `shouldRespondWith` 200
-        
+
+    it "returns all rows" $ do
+      jwt <- getJwt
+      getAuth jwt (root <> "/my/rows")
+        `shouldRespondWith` 200
+
+    it "returns full plans" $ do
+      jwt <- getJwt
+      getAuth jwt (root <> "/my/full")
+        `shouldRespondWith` 200
+    
     it "adds treatment plan" $ do
       jwt <- getJwt
-      getAuth jwt (root `mappend` "/new/plan")
+      getAuth jwt (root <> "/new/plan")
         `shouldRespondWith` 200
         
     it "adds and deletes plan" $ do
       jwt <- getJwt
-      pid <- cs <$> simpleBody <$> getAuth jwt (root `mappend` "/new/plan")
-      deleteAuth jwt (root `mappend` "/delete/plan/" `mappend` pid)
+      pid <- cs <$> simpleBody
+        <$> getAuth jwt (root <> "/new/plan")
+      deleteAuth jwt (root <> "/delete/plan/" <> pid)
+        `shouldRespondWith` 200
+
+    it "adds rows" $ do
+      jwt <- getJwt
+      pid <- fromMaybe (error "plan not found")
+        . decode
+        . simpleBody
+        <$> getAuth jwt (root <> "/new/plan")
+      med <- fromMaybe (error "med not found")
+        . fmap entityKey
+        . (listToMaybe =<<)
+        . decode
+        . simpleBody
+        <$> getAuth jwt ("/private/medicament/all")
+      
+      now <- liftIO getCurrentTime
+      let when = addUTCTime (1 * 10^12) now
+      postAuth jwt
+        (root <> "/new/row")
+        (encode $ TreatmentPlanRow when med pid)
         `shouldRespondWith` 200
     
   where
@@ -42,7 +83,7 @@ spec getJwt = do
     getAuth jwt route = request methodGet route (defHeaders jwt) ""
     deleteAuth jwt route = request methodDelete route (defHeaders jwt) ""
     postAuth jwt route body =
-      request methodDelete route (defHeaders jwt) body
+      request methodPost route (defHeaders jwt) body
     addTestItemRequest jwt n d h =
       request methodPost
       (root `mappend` "/add")

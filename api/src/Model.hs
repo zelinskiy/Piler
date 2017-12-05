@@ -25,6 +25,7 @@ share [mkPersist sqlSettings
   [persistLowerCase|
 Device json
     ip String
+    userId UserId
     Primary ip
     deriving Eq Show
 DeviceStorage json
@@ -37,7 +38,6 @@ User json
     email String
     password String
     status String
-    deviceId DeviceId
     Primary email
     deriving Eq Show
 TreatmentPlan json

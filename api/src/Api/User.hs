@@ -47,8 +47,9 @@ server p me =
   :<|> unregister
   where
     getMyself = return me
-    unregister = exPool p $
+    unregister = exPool p $ do      
       deleteCascade (entityKey me)
+      
 
 
 publicServer :: ConnectionPool -> Server PublicAPI
@@ -57,10 +58,10 @@ publicServer p = register
     register RegisterData
       { email = email
       , pass = pass
-      , ip = ip} = exPool p $ do
-      did <- insert $ Device ip
-      insert $ User
+      , ip = ip} = exPool p $ do      
+      uid <- insert $ User
         { userEmail = email
         , userPassword = pass
-        , userStatus = "normal"
-        , userDeviceId = did }
+        , userStatus = "normal" }
+      did <- insert $ Device ip uid
+      return uid

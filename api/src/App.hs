@@ -39,7 +39,7 @@ app = do
             :. cs :. jwt :. EmptyContext
       api = Proxy :: Proxy Api.Main.API
 
-  forkIO $ TickTack.run pool
+  forkIO $ runStdoutLoggingT $ TickTack.run pool
   
   return $ serveWithContext api ctx (Api.Main.server pool cs jwt)
 

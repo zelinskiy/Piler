@@ -1,14 +1,19 @@
+{-# LANGUAGE OverloadedStrings #-}
 module TickTack (run) where
 
 import Servant
 import Network.Wai
-import Database.Persist.Sql
+import Database.Persist.Sql hiding (get)
+import Control.Concurrent
+import Control.Monad.Logger
+import Control.Monad.Trans
 
 import Model
 import Utils
 
 -- Doing some scheduling
-run :: ConnectionPool -> IO ()
-run pool = do
-  putStrLn "Started TickTack Service."
-
+run :: (MonadIO m, MonadLogger m)
+    => ConnectionPool -> m ()
+run pool =  do
+  logInfoN "Started TickTack Service."
+  liftIO $ threadDelay 1000

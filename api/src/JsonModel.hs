@@ -11,7 +11,7 @@ import Model
 data Login = Login
   { email :: String
   , password :: String
-  } deriving (Eq, Show, Read, Generic)
+  } deriving (Eq, Show, Generic)
 
 instance ToJSON Login
 instance FromJSON Login
@@ -28,7 +28,16 @@ instance FromJSON RegisterData
 data DeviceStatus = DeviceStatus
                   { device :: Device
                   , storage :: [DeviceStorage] }
-                  deriving (Eq,Show,Generic)
+                  deriving (Eq, Show, Generic)
 
 instance ToJSON DeviceStatus
 instance FromJSON DeviceStatus
+
+data FullTreatmentPlan
+  = FullTreatmentPlan
+    { treatmentPlan :: TreatmentPlan
+    , treatmentPlanRows :: [TreatmentPlanRow]
+    } deriving (Eq, Show, Generic)
+
+instance ToJSON FullTreatmentPlan
+instance FromJSON FullTreatmentPlan
