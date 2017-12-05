@@ -26,20 +26,14 @@ import GHC.Generics
 import Data.Aeson
 
 import Model
+import JsonModel(RegisterData(..))
 import Utils
-
-data RegisterData = RegisterData
-  { email :: String
-  , pass  :: String
-  , ip    :: String
-  } deriving (Eq, Show, Generic)
-
-instance ToJSON RegisterData
-instance FromJSON RegisterData
 
 type API =
          "me"
       :> Get '[JSON] (Entity User)
+    :<|> "unregister"
+      :> Get '[JSON] ()
     
 type PublicAPI =
          "register"
@@ -49,8 +43,12 @@ type PublicAPI =
 server :: ConnectionPool -> Entity User -> Server API
 server p me =
        getMyself
+  :<|> unregister
   where
     getMyself = return me
+    unregister = exPool p $
+      deleteWhere [UserId ==. entityKey me]
+      >> return ()
 
 
 publicServer :: ConnectionPool -> Server PublicAPI

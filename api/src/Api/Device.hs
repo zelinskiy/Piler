@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
@@ -19,55 +20,34 @@ import Data.Maybe
 import Control.Monad.Trans.Reader
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource.Internal
+import Data.Aeson
+import GHC.Generics
 
 import Model
+import JsonModel(DeviceStatus(..))
 import Utils
 
 type API =
          "my"
-      :> Get '[JSON] [Entity TreatmentPlan]
-    :<|> "new"
-      :>      ("plan"            
-            :> Get '[JSON] (Key TreatmentPlan)
-          :<|> "row"
-            :> ReqBody '[JSON] TreatmentPlanRow
-            :> Post '[JSON] (Key TreatmentPlanRow))
-    :<|> "delete"
-      :>      ("plan"
-            :> Capture "id" (Key TreatmentPlan)
-            :> Delete '[JSON] ()
-          :<|> "row"
-            :> Capture "id" (Key TreatmentPlanRow)
-            :> Delete '[JSON] ())
-    :<|> "update"
-      :>      ("plan"
-            :> Capture "id" (Key TreatmentPlan)
-            :> ReqBody '[JSON] TreatmentPlan
-            :> Post '[JSON] ()
-          :<|> "row"
-            :> Capture "id" (Key TreatmentPlanRow)
-            :> ReqBody '[JSON] TreatmentPlanRow
-            :> Post '[JSON] ())
-      
-      
+      :> ("id" :> Get '[JSON] (Entity Device)
+         :<|> "status" :> Get '[JSON] DeviceStatus)
+    
 
 server :: ConnectionPool -> Entity User -> Server API
 server p me =
-       myTreatmentPlans
-  :<|> (addTreatmentPlan    :<|> addTreatmentPlanRow)
-  :<|> (deleteTreatmentPlan :<|> deleteTreatmentPlanRow)
-  :<|> (updateTreatmentPlan :<|> updateTreatmentPlanRow)
+       (myDevice
+  :<|> myDeviceStatus)
   where
-    myTreatmentPlans = exPool p $
-      selectList [TreatmentPlanUserId ==. entityKey me] []
-    addTreatmentPlan = exPool p $ insert $
-      TreatmentPlan { treatmentPlanUserId = entityKey me }
-    addTreatmentPlanRow = exPool p . insert
-    deleteTreatmentPlan pid = exPool p $
-      deleteWhere [TreatmentPlanId ==. pid]
-    deleteTreatmentPlanRow rid = exPool p $
-      deleteWhere [TreatmentPlanRowId ==. rid]
-    updateTreatmentPlan pid plan =
-      exPool p $ replace pid plan
-    updateTreatmentPlanRow rid row =
-      exPool p $ replace rid row
+    myDevice = do 
+      mbDevice <- exPool p $
+        selectFirst [DeviceUserId ==. Just (entityKey me)] []
+      case mbDevice of
+        Just d -> return d
+        Nothing -> throwError err403
+    myDeviceStatus = do
+      d <- myDevice
+      s <- exPool p $
+        selectList [DeviceStorageDeviceId ==. entityKey d] []
+      return DeviceStatus
+        { device = entityVal d
+        , storage = map entityVal s }

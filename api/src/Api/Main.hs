@@ -5,7 +5,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Api.Main(app, startApp) where
+module Api.Main(API, server) where
 
 import Network.Wai.Handler.Warp
 import Database.Persist.Sqlite
@@ -30,8 +30,6 @@ import qualified Api.Device
 import qualified Api.User
 import qualified Api.AuthJWT
 import qualified Api.Auth
-
-sqlitePath = "sqlite.db"
 
 type API =
        "public"   :> PublicApi
@@ -75,27 +73,5 @@ privateServer p (Authenticated u) =
   :<|> Api.Device.server     p u
   :<|> Api.User.server       p u
 privateServer _ _ = throwAll err401
-              
-getConnectionPool :: IO ConnectionPool
-getConnectionPool = do
-  pool <- runStdoutLoggingT $
-    createSqlitePool sqlitePath 5
-  runSqlPool (runMigration migrateAll) pool
-  return pool
 
-app :: IO Application
-app = do
-  pool <- getConnectionPool
-  k <- generateKey
-  let cs = defaultCookieSettings
-         { cookieMaxAge = Just $ secondsToDiffTime 3600 }
-      jwt = defaultJWTSettings k
-      jwtContext = cs :. jwt :. EmptyContext
-      ctx = Api.Auth.authContext pool
-            :. cs :. jwt :. EmptyContext
-      api = Proxy :: Proxy API
-      
-  return $ serveWithContext api ctx (server pool cs jwt)
 
-startApp :: IO ()
-startApp = run 8080 =<< app

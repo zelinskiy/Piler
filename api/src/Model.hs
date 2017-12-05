@@ -24,11 +24,13 @@ Device json
     ip String
     userId UserId Maybe
     Primary ip
+    deriving Eq Show
 DeviceStorage json
     quantity Int
     medicamentId MedicamentId
     deviceId DeviceId
     Primary medicamentId deviceId
+    deriving Eq Show
 User json
     email String
     password String
@@ -43,6 +45,7 @@ TreatmentPlanRow json
     at UTCTime
     medicamentId MedicamentId
     treatmentPlan TreatmentPlanId
+    deriving Eq Show
 Medicament json
     name String
     diameter Int

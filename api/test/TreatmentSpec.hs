@@ -2,8 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module TreatmentSpec (spec) where
 
-import Api.Main (app)
-
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -13,11 +11,12 @@ import Data.ByteString.Internal
 import Network.Wai.Test (simpleBody)
 import Data.String.Conversions
 import Data.Aeson
+import Network.Wai
 
 import Model
 
-spec :: Spec
-spec = with app $ do
+spec :: ByteString -> SpecWith Application
+spec jwt = do
   describe "treatment" $ do
     it "returns my plans" $ do
       getAuth (root `mappend` "/my")
@@ -32,13 +31,11 @@ spec = with app $ do
       deleteAuth (root `mappend` "/delete/plan/" `mappend` pid)
         `shouldRespondWith` 200
     
-    
   where
-    root = "/private2/treatment"
+    root = "/private/treatment"
     defHeaders =
-      [(hContentType,"application/json")
-      , ("email", "user1@mail.com")
-      , ("password", "pass")]
+      [ (hContentType,"application/json")
+      , (hAuthorization, "Bearer " <> jwt)]
     getAuth route = request methodGet route defHeaders ""
     deleteAuth route = request methodDelete route defHeaders ""
     postAuth route body =

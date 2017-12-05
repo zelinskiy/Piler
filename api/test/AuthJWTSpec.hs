@@ -3,8 +3,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module AuthJWTSpec (spec) where
 
-import Api.Main (app)
-
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -19,6 +17,7 @@ import Control.Monad
 import Data.List
 import Control.DeepSeq
 import Control.Exception
+import Network.Wai
 
 import Model
 import Api.AuthJWT (Login(..))
@@ -31,8 +30,8 @@ findCookie headers cname =
                    && cname `isPrefixOf` cs c
   in not $ null $ filter pred headers
 
-spec :: Spec
-spec = with app $ do
+spec :: SpecWith Application
+spec = do
   describe "JWT authentication" $ do
     let h = [(hContentType,"application/json")]
         l = encode $ Login "user1@mail.com" "pass"
@@ -46,8 +45,6 @@ spec = with app $ do
         when (not $ findCookie hs "XSRF-TOKEN")
           (assertFailure "XSRF token not returned")        
       return ()
-
-        
         
     
 

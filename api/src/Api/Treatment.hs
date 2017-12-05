@@ -6,10 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Api.Treatment
-    ( API
-    , server
-    ) where
+module Api.Treatment (API, server) where
 
 import Database.Persist.Sqlite
 import Control.Monad.IO.Class

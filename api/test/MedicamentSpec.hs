@@ -2,8 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module MedicamentSpec (spec) where
 
-import Api.Main (app)
-
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -13,11 +11,12 @@ import Data.ByteString.Internal
 import Network.Wai.Test (simpleBody)
 import Data.String.Conversions
 import Data.Aeson
+import Network.Wai
 
 import Model
 
-spec :: Spec
-spec = with app $ do
+spec :: ByteString -> SpecWith Application
+spec jwt = do
   describe "medicaments" $ do
     it "returns all items" $ do
       getAuth (root `mappend` "/all")
@@ -29,18 +28,17 @@ spec = with app $ do
         
     it "adds and deletes items" $ do
       mid <- cs <$> simpleBody <$> addTestItemRequest "TestItem" 1 1
-      deleteAuth (root `mappend` "/delete/" `mappend` mid)
+      deleteAuth (root `mappend` "/delete/" <> mid)
         `shouldRespondWith` 200
         
     it "refuses to add item with zero diameter" $ do      
       addTestItemRequest "TestItem" 0 1
         `shouldRespondWith` 400
   where
-    root = "/private2/medicament"
+    root = "/private/medicament"
     defHeaders =
       [(hContentType,"application/json")
-      , ("email", "user1@mail.com")
-      , ("password", "pass")]
+      , (hAuthorization, "Bearer " <> jwt)]
     getAuth route = request methodGet route defHeaders ""
     deleteAuth route = request methodDelete route defHeaders ""
     addTestItemRequest n d h =
