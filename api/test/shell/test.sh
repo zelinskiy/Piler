@@ -23,8 +23,10 @@ curl -XPOST localhost:8080/private2/treatment/new/row -H "email: user1@mail.com"
 
 # Bearer JWT Authentication
 
-curl -v -POST localhost:8080/public/jwt/login -H "Content-Type: application/json" -d '{"username": "user1@mail.com", "password":"pass"}'
+curl -v -POST localhost:8080/public/jwt/login -H "Content-Type: application/json" -d '{"email": "user1@mail.com", "pass":"pass"}'
 
-curl -v -POST localhost:8080/private/medicament/all -H "Authorization: Bearer JWT"
+curl -v -POST localhost:8080/private/device/my/stored/1 -H "Authorization: Bearer JWT"
 
+# IoT Client
 
+curl -v -GET localhost:8070/dispence/1/3
