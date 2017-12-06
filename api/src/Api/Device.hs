@@ -29,14 +29,23 @@ import Utils
 
 type API =
          "my"
-      :> ("id" :> Get '[JSON] (Entity Device)
-         :<|> "status" :> Get '[JSON] DeviceStatus)
+      :>     ("id"       :> Get '[JSON] (Entity Device)
+         :<|> "status"   :> Get '[JSON] DeviceStatus
+         :<|> "refill"
+           :> Capture "mid" (Key Medicament)
+           :> Capture "quantity" Int
+           :> Get '[JSON] Int
+         :<|> "dispence"
+           :> Capture "mid" (Key Medicament)
+           :> Get '[JSON] DeviceStatus)
     
 
 server :: ConnectionPool -> Entity User -> Server API
 server p me =
        (myDevice
-  :<|> myDeviceStatus)
+  :<|> myDeviceStatus
+  :<|> refill
+  :<|> dispence)
   where
     myDevice = do 
       mbDevice <- exPool p $
@@ -51,3 +60,17 @@ server p me =
       return DeviceStatus
         { device = entityVal d
         , storage = map entityVal s }
+    refill mid quant = do
+      did <- entityKey <$> myDevice
+      exPool p $ do
+        mbStorage :: Maybe (Entity DeviceStorage) <- selectFirst
+              [ DeviceStorageMedicamentId ==. mid
+              , DeviceStorageDeviceId ==. did ] []
+        sid <- case mbStorage of
+          Just s -> return (entityKey s)
+          Nothing -> insert $ DeviceStorage 0 mid did
+        deviceStorageQuantity
+          <$> updateGet sid [DeviceStorageQuantity +=. quant]
+                     
+    dispence = undefined
+

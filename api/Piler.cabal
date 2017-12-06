@@ -19,7 +19,7 @@ library
                      , Model
                      , JsonModel
                      , Utils
-                     , TickTack
+                     , Services.TickTack
                      , Api.Main
                      , Api.Auth
                      , Api.AuthJWT

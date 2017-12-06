@@ -10,7 +10,7 @@ import Model
 
 data Login = Login
   { email :: String
-  , password :: String
+  , pass :: String
   } deriving (Eq, Show, Generic)
 
 instance ToJSON Login

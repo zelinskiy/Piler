@@ -15,7 +15,7 @@ import qualified Model
 import qualified Api.AuthJWT
 import qualified Api.Auth
 import qualified Api.Main
-import qualified TickTack
+import qualified Services.TickTack as TickTack
 
 sqlitePath = "sqlite.db"
 port = 8080
@@ -34,7 +34,6 @@ app = do
   let cs = defaultCookieSettings
          { cookieMaxAge = Just $ secondsToDiffTime 3600 }
       jwt = defaultJWTSettings k
-      jwtContext = cs :. jwt :. EmptyContext
       ctx = Api.Auth.authContext pool
             :. cs :. jwt :. EmptyContext
       api = Proxy :: Proxy Api.Main.API

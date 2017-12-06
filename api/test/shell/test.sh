@@ -4,6 +4,10 @@
 
 sqlite3 sqlite.db  'INSERT INTO user VALUES ("user1@mail.com", "pass", "normal", 0);'
 
+find . -name '*.hs' | xargs wc -l
+
+sqlite3 sqlite.db "DELETE FROM user WHERE email = 'test@mail.com'; DELETE FROM device WHERE ip = '127.0.0.1'"
+
 #Old authentication
 
 curl -XPOST localhost:8080/private2/medicament/add -H "email: user1@mail.com" -H "password: pass" -H "Content-Type: application/json" -d '{"name": "Aspirin", "diameter": 1, "height": 1}'
@@ -23,4 +27,4 @@ curl -v -POST localhost:8080/public/jwt/login -H "Content-Type: application/json
 
 curl -v -POST localhost:8080/private/medicament/all -H "Authorization: Bearer JWT"
 
-sqlite3 sqlite.db "DELETE FROM user WHERE email = 'test@mail.com'; DELETE FROM device WHERE ip = '127.0.0.1'"
+

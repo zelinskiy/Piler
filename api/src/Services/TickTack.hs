@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module TickTack (run) where
+module Services.TickTack (run) where
 
 import Servant
 import Network.Wai
