@@ -69,10 +69,10 @@ spec getJwt = do
         <$> getAuth jwt ("/private/medicament/all")
       
       now <- liftIO getCurrentTime
-      let when = addUTCTime (1 * 10^12) now
+      let when = addUTCTime (2 * 10^12) now
       postAuth jwt
         (root <> "/new/row")
-        (encode $ TreatmentPlanRow when med pid)
+        (encode $ TreatmentPlanRow when 1 med pid)
         `shouldRespondWith` 200
     
   where

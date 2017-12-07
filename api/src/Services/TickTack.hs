@@ -1,4 +1,7 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 module Services.TickTack (run) where
 
 import Servant
@@ -7,6 +10,13 @@ import Database.Persist.Sql hiding (get)
 import Control.Concurrent
 import Control.Monad.Logger
 import Control.Monad.Trans
+import Data.Time.Clock
+import qualified Data.Text as T
+import Data.Monoid
+import Control.Monad
+import Network.HTTP.Simple
+import Network.HTTP.Types
+import Data.String.Conversions
 
 import Model
 import Utils
@@ -16,13 +26,70 @@ run :: (MonadIO m, MonadLogger m)
     => ConnectionPool -> m ()
 run pool =  do
   logInfoN "Started TickTack Service."
-  --go pool
+  go pool
 
+go :: (MonadIO m, MonadLogger m)
+   => ConnectionPool -> m ()
 go pool = do
-  logInfoN "Tick"
-  sleep
-  logInfoN "Tack"
+  let delay = 30
+      exPool p = liftIO . flip runSqlPersistMPool p  
+      sleep = liftIO $ threadDelay (fromInteger delay*10^6)
+      
+  now <- liftIO getCurrentTime
+  pending <- exPool pool $ selectList
+    [TreatmentPlanRowAt <=. now] []
+  
+  when (not (null pending)) $ do
+    logInfoN $ "TickTack sent "
+      <> T.pack (show (length pending))
+      <> " notification(s)"
+    forM_ pending $ \r -> do     
+      device <- exPool pool $ updateStorage r
+      dispenceDevice device r      
+      return ()
+    
   sleep
   go pool
+  
+-- send dispence command to device
+dispenceDevice device r =          
+  httpLBS
+  $ setRequestMethod "GET"
+  $ parseRequest_
+  $ "http://" <> cs ip
+    <> "/dispence"
+    <> "/" <> show m
+    <> "/" <> show n
   where
-    sleep = liftIO $ threadDelay 1000000
+    ip = deviceIp $ entityVal device
+    [PersistInt64 m] = keyToValues
+       $ treatmentPlanRowMedicamentId (entityVal r)
+    n = treatmentPlanRowQuantity (entityVal r)
+
+-- update storages
+updateStorage r = do
+  let rv = entityVal r
+      rk = entityKey r
+      
+  Just plan <- getEntity (treatmentPlanRowTreatmentPlanId rv)
+      
+  Just device <- getEntity (treatmentPlanDeviceId (entityVal plan))
+    
+  mbStorage <- selectFirst
+    [DeviceStorageDeviceId ==. entityKey device] []
+
+  let storage =
+        case mbStorage of
+          Nothing -> error "Notify: refill please"
+          Just s -> s
+    
+  updateWhere
+    [ DeviceStorageId ==. entityKey storage
+    , DeviceStorageMedicamentId
+      ==. treatmentPlanRowMedicamentId rv]
+    [ DeviceStorageQuantity -=.
+      treatmentPlanRowQuantity rv]
+  deleteWhere
+    [TreatmentPlanRowId ==. entityKey r]
+
+  return device

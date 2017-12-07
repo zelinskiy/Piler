@@ -34,11 +34,11 @@ postJson jwt route body
 getConfig :: IO Configuration
 getConfig = withFile "config.txt" ReadMode $ \h -> do
   [cp, tty] <- getArgs
-  [e, p] <- lines <$> hGetContents h
+  [e, p, u] <- lines <$> hGetContents h
   h <- openSerial tty defaultSerialSettings
       { commSpeed = CS9600 }
   return Configuration
-    { serverUrl  = "http://localhost:8080"
+    { serverUrl  = u
     , clientHost = "localhost"
     , clientPort = read cp
     , devicePort = h
@@ -56,6 +56,7 @@ getJWT c = do
       findJWT (h:hs)
         | "JWT-Cookie" `isPrefixOf` h = chop h
         | otherwise = findJWT hs
+      findJWT [] = error "cannot find auth cookie"
   cs <$> findJWT <$> map cs
      <$> getResponseHeader "Set-Cookie"
      <$> postJson "" route login

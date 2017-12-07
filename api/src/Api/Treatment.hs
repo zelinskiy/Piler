@@ -53,7 +53,7 @@ type API =
             :> Post '[JSON] ())
       
       
-
+-- balance parenthesis /new/plan -> plan/new
 server :: ConnectionPool -> Entity User -> Server API
 server p me =
        (myFullTreatmentPlans
@@ -66,25 +66,32 @@ server p me =
   :<|> (updateTreatmentPlan
         :<|> updateTreatmentPlanRow)
   where
+    myDevice = fromJust
+      <$> fmap entityKey <$> selectFirst
+        [DeviceUserId ==. entityKey me] []
+    
     myTreatmentPlans = exPool p $ do
-      selectList [TreatmentPlanUserId ==. entityKey me] []
+      did <- myDevice
+      selectList [TreatmentPlanDeviceId ==. did] []
       
     myTreatmentPlanRows = do
       plans <- map entityKey <$> myTreatmentPlans
       exPool p $
-        selectList [TreatmentPlanRowTreatmentPlan <-. plans] []
+        selectList [TreatmentPlanRowTreatmentPlanId <-. plans] []
         
     myFullTreatmentPlans = do
       plans <- myTreatmentPlans
       rows <- map entityVal <$> myTreatmentPlanRows
-      let pred p r = treatmentPlanRowTreatmentPlan r == entityKey p
+      let pred p r = treatmentPlanRowTreatmentPlanId r
+                             == entityKey p
       return $ map (\p -> FullTreatmentPlan
             { treatmentPlan = entityVal p
             , treatmentPlanRows = filter (pred p) rows })
         plans
         
-    addTreatmentPlan = exPool p $ insert $
-      TreatmentPlan { treatmentPlanUserId = entityKey me }
+    addTreatmentPlan = exPool p $ do
+      did <- myDevice
+      insert $ TreatmentPlan did
       
     addTreatmentPlanRow = exPool p . insert
     

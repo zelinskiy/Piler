@@ -41,12 +41,13 @@ User json
     Primary email
     deriving Eq Show
 TreatmentPlan json
-    userId UserId
+    deviceId DeviceId 
     deriving Eq Show
 TreatmentPlanRow json
     at UTCTime
+    quantity Int
     medicamentId MedicamentId
-    treatmentPlan TreatmentPlanId
+    treatmentPlanId TreatmentPlanId
     deriving Eq Show
 Medicament json
     name String

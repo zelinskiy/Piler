@@ -1,2 +1,3 @@
-user1@mail.com
+user7@mail.com
 pass
+http://localhost:8080

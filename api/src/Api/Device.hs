@@ -30,9 +30,12 @@ import Model
 import JsonModel(DeviceStatus(..))
 import Utils
 
+--TODO: many devices for 1 user
+
 type API =
          "my"
-      :>     ("id"       :> Get '[JSON] (Entity Device)
+      :>     ("all"      :> Get '[JSON] (Entity Device)
+         :<|> "id"       :> Get '[JSON] (Key Device)
          :<|> "status"   :> Get '[JSON] DeviceStatus
          :<|> "stored"
            :> Capture "mid" (Key Medicament)
@@ -49,11 +52,13 @@ type API =
            :> Capture "mid" (Key Medicament)
            :> Capture "quantity" Int
            :> Get '[JSON] DeviceStatus)
+             
     
 
 server :: ConnectionPool -> Entity User -> Server API
 server p me =
        (myDevice
+  :<|> myDeviceId
   :<|> myDeviceStatus
   :<|> storedOf
   :<|> refill
@@ -66,7 +71,7 @@ server p me =
       case mbDevice of
         Just d -> return d
         Nothing -> throwError err403
-        
+    myDeviceId = entityKey <$> myDevice
     myDeviceStatus = do
       d <- myDevice
       s <- exPool p $
@@ -107,7 +112,7 @@ server p me =
     dispence mid n = do
       ip <- deviceIp <$> entityVal <$> myDevice
       let [PersistInt64 m] = keyToValues mid
-      let route = "http://" <> cs ip
+          route = "http://" <> cs ip
                   <> "/dispence"
                   <> "/" <> show m
                   <> "/" <> show n
