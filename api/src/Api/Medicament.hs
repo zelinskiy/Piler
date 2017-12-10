@@ -38,5 +38,5 @@ server p me =
       | medicamentDiameter med <= 0 = throwError $ err400
           { errBody = "Diameter should be positive" } 
     addMedicament med = exPool p $ insert med
-    deleteMedicament = exPool p . delete 
+    deleteMedicament = exPool p . delete
 

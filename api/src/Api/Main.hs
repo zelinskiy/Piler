@@ -1,9 +1,12 @@
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Api.Main(API, server) where
 
@@ -33,7 +36,10 @@ import qualified Api.Auth
 import qualified Api.Admin
 import qualified Api.Shopping
 
-type API =
+
+
+
+type API = 
        "public"   :> PublicApi
   :<|> "private"  :> Api.AuthJWT.Private :> PrivateApi
   :<|> "private2" :> Api.Auth.Private    :> PrivateApi

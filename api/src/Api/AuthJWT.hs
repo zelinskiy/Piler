@@ -56,7 +56,8 @@ publicServer pool cookieSettings jwtSettings (Login e p) = do
        liftIO $ acceptLogin cookieSettings jwtSettings usr
   case mApplyCookies of
     Nothing ->
-      throwError $ err401 { errBody = "Can't apply cookie" }
+      throwError $ err401
+      { errBody = "Can't apply cookie" }
     Just applyCookies ->
       return $ applyCookies NoContent
        

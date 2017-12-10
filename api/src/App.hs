@@ -5,6 +5,7 @@ module App (app, startApp) where
 import Network.Wai.Handler.Warp
 import Database.Persist.Sqlite
 import Servant
+import Servant.Server
 import Servant.Auth.Server
 import Control.Monad.IO.Class
 import Control.Monad.Logger (runStdoutLoggingT)
@@ -17,6 +18,7 @@ import qualified Api.AuthJWT
 import qualified Api.Auth
 import qualified Api.Main
 import qualified Services.TickTack as TickTack
+
 
 sqlitePath = "sqlite.db"
 port = 8080
@@ -40,8 +42,8 @@ app = do
       api = Proxy :: Proxy Api.Main.API
 
   forkIO $ runStdoutLoggingT $ TickTack.run pool
-  
-  return $ serveWithContext api ctx (Api.Main.server pool cs jwt)
+  let app = serveWithContext api ctx (Api.Main.server pool cs jwt)
+  return (\req res -> app req res)
 
 
 startApp :: IO ()

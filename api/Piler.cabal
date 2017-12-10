@@ -95,7 +95,7 @@ test-suite Piler-test
                      , TreatmentSpec
                      , AuthJWTSpec
                      , UserSpec
-                     , ShoppingSpec
+                     
   build-depends:       HUnit
                      , Piler
                      , QuickCheck
