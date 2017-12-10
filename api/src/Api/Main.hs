@@ -30,6 +30,8 @@ import qualified Api.Device
 import qualified Api.User
 import qualified Api.AuthJWT
 import qualified Api.Auth
+import qualified Api.Admin
+import qualified Api.Shopping
 
 type API =
        "public"   :> PublicApi
@@ -46,6 +48,8 @@ type PrivateApi =
   :<|> "treatment"  :> Api.Treatment.API
   :<|> "device"     :> Api.Device.API
   :<|> "user"       :> Api.User.API
+  :<|> "admin"      :> Api.Admin.API
+  :<|> "shopping"   :> Api.Shopping.API
   
 server :: ConnectionPool
        -> CookieSettings
@@ -72,6 +76,8 @@ privateServer p (Authenticated u) =
   :<|> Api.Treatment.server  p u
   :<|> Api.Device.server     p u
   :<|> Api.User.server       p u
+  :<|> Api.Admin.server      p u
+  :<|> Api.Shopping.server   p u
 privateServer _ _ = throwAll err401
 
 

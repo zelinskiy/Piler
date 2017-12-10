@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
@@ -25,6 +26,7 @@ import Control.Monad.Logger
 import Control.Monad.Trans.Resource.Internal
 import GHC.Generics
 import Data.Aeson
+import qualified Crypto.Hash.SHA256 as SHA256
 
 import Model
 import JsonModel(RegisterData(..))
@@ -34,6 +36,10 @@ type API =
          "me"
       :> Get '[JSON] (Entity User)
     :<|> "unregister"
+      :> Get '[JSON] ()
+    :<|> "updrade"
+      :> Capture "status" String
+      :> Capture "key" String
       :> Get '[JSON] ()
     
 type PublicAPI =
@@ -45,12 +51,16 @@ server :: ConnectionPool -> Entity User -> Server API
 server p me =
        getMyself
   :<|> unregister
+  :<|> upgrade
   where
     getMyself = return me
     unregister = exPool p $ do      
       deleteCascade (entityKey me)
+    upgrade "silver" k = do
+      undefined
+    upgrade _ _ = throwError $ err403
+      { errBody = "unknown status" }
       
-
 
 publicServer :: ConnectionPool -> Server PublicAPI
 publicServer p = register
@@ -61,7 +71,8 @@ publicServer p = register
       , ip = ip} = exPool p $ do      
       uid <- insert $ User
         { userEmail = email
-        , userPassword = pass
-        , userStatus = "normal" }
+        , userPassword = hash pass
+        , userStatus = Normal }
       did <- insert $ Device ip uid
       return uid
+      

@@ -5,17 +5,18 @@ module Main (main) where
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+import Test.Hspec.Wai.Internal
 
 import Network.HTTP.Types.Method
 import Network.HTTP.Types.Header
 import Data.String.Conversions
 import Network.Wai.Test hiding (request)
 import Data.Aeson
-import Test.Hspec.Wai.Internal
 import Data.List
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Internal as BS (c2w, w2c)
-
+import System.Process
+import Data.Word8
 import Network.Wai
 
 import App (app)
@@ -25,9 +26,8 @@ import qualified MedicamentSpec
 import qualified TreatmentSpec
 import qualified AuthJWTSpec
 import qualified UserSpec
-import System.Process
+import qualified ShoppingSpec
 
-import Data.Word8
 
 testUser =
   RegisterData "test@mail.com" "pass" "127.0.0.1"
@@ -49,6 +49,7 @@ main = hspec $ with app $ do
     UserSpec.registerSpec testUser    
     AuthJWTSpec.spec testLogin
     MedicamentSpec.spec getJwt
-    TreatmentSpec.spec getJwt    
+    TreatmentSpec.spec getJwt
+    ShoppingSpec.spec getJwt
     UserSpec.unregisterSpec getJwt
-  
+    

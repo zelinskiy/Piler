@@ -59,6 +59,7 @@ server p me =
        (myFullTreatmentPlans
         :<|> myTreatmentPlans
         :<|> myTreatmentPlanRows)
+  -- TODO: Check that I own these plans
   :<|> (addTreatmentPlan
         :<|> addTreatmentPlanRow)
   :<|> (deleteTreatmentPlan

@@ -23,6 +23,7 @@ import Servant.Auth.Server
 import Servant.Auth.Server.SetCookieOrphan ()
 import Database.Persist.Sqlite
 
+
 import Model
 import JsonModel(Login(..))
 import Utils
@@ -45,17 +46,18 @@ publicServer :: ConnectionPool
              -> JWTSettings
              -> Server PublicAPI
 publicServer pool cookieSettings jwtSettings (Login e p) = do
-   mUsr <- exPool pool $ selectFirst [ UserEmail    ==. e
-                                     , UserPassword ==. p] []
-   mApplyCookies <- case mUsr of
+  mUsr <- exPool pool $
+    selectFirst [ UserEmail    ==. e
+                , UserPassword ==. hash p ] []
+  mApplyCookies <- case mUsr of
      Nothing ->
        throwError $ err401 { errBody = "Can't find user" }
      Just usr ->
        liftIO $ acceptLogin cookieSettings jwtSettings usr
-   case mApplyCookies of
-     Nothing ->
-       throwError $ err401 { errBody = "Can't apply cookie" }
-     Just applyCookies ->
-       return $ applyCookies NoContent
+  case mApplyCookies of
+    Nothing ->
+      throwError $ err401 { errBody = "Can't apply cookie" }
+    Just applyCookies ->
+      return $ applyCookies NoContent
        
 

@@ -21,10 +21,9 @@ import Data.Aeson
 import Servant.Server.Experimental.Auth
 import Network.Wai
 import Data.ByteString (ByteString)
-import Data.ByteString.Char8(unpack)
+import Data.ByteString.Char8(unpack, pack)
 import Data.Map (Map, fromList)
 import Data.List
-import qualified Data.Map as Map
 
 import Model
 import Utils
@@ -38,8 +37,8 @@ throw401 m = throwError (err401 { errBody = m })
 authContext :: ConnectionPool
             -> AuthHandler Request (Entity User)
 authContext pool = mkAuthHandler $ \req ->
-  let h = requestHeaders req in
-  case (lookup "email" h, lookup "password" h) of
+  let h = requestHeaders req
+  in case (lookup "email" h, lookup "password" h) of
     (Nothing, Nothing) -> 
       throw401 "Missing password & email"
     (Nothing, Just p) ->
@@ -49,7 +48,7 @@ authContext pool = mkAuthHandler $ \req ->
     (Just e, Just p) -> do
       mbUser <- exPool pool $
         selectFirst [ UserEmail    ==. unpack e
-                            , UserPassword ==. unpack p] []
+                    , UserPassword ==. hash (unpack p) ] []
                                         
       case mbUser of
         Just u -> return u
