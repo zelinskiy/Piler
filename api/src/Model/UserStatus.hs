@@ -11,7 +11,7 @@ data UserStatus
   = Normal
   | Silver
   | Admin
-    deriving (Show, Read, Eq, Generic)
+    deriving (Show, Read, Eq, Ord, Generic)
 derivePersistField "UserStatus"
 
 instance ToJSON UserStatus

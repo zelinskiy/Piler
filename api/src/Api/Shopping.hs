@@ -1,8 +1,11 @@
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
-
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Api.Shopping
     ( API
     , server
@@ -11,6 +14,7 @@ module Api.Shopping
 import Database.Persist.Sqlite
 import Control.Monad.IO.Class
 import Servant
+import Servant.Server.Internal.RoutingApplication
 
 import Model
 import Utils
@@ -50,14 +54,16 @@ type API =
              :> Capture "lid" (Key ShoppingList) 
              :> Capture "mid" (Key Medicament)
              :> Delete '[JSON] ())
-
+-- TODO: Fancy route combinator or else
 server :: ConnectionPool -> Entity User -> Server API
+--server p me | userStatus (entityVal me) < Silver
+--  = error "You have bad status"
 server p me =
   (allLists
-   :<|> getList
-   :<|> newList
-   :<|> updateList
-   :<|> deleteList)
+    :<|> getList
+    :<|> newList
+    :<|> updateList
+    :<|> deleteList)
   :<|>
   (allRows
     :<|> getRow
@@ -89,3 +95,24 @@ server p me =
     deleteRow lid mid =
       exPool p $ delete (ShoppingListRowKey lid mid)
 
+
+
+type RoledAPI = WithRole :> API
+data WithRole
+data Role = Guest | Member | Admin
+
+newtype RoleCheck = RoleCheck { unRoleCheck :: Role }
+
+instance (HasServer api ctx, HasContextEntry ctx RoleCheck)
+  => HasServer (WithRole :> api) ctx where
+  type ServerT (WithRole :> api) m = Role -> ServerT api m
+  route Proxy ctx subserver =
+    route (Proxy :: Proxy api) ctx (subserver `addAuthCheck` authCheck)
+    where
+      authCheck = withRequest $ \req -> liftIO $ return role
+      role :: Role = unRoleCheck $ getContextEntry ctx
+      
+
+roledServer :: ConnectionPool -> Entity User -> Server RoledAPI
+roledServer p me = undefined
+  where handler r = server p me

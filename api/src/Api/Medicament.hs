@@ -32,10 +32,11 @@ server p me =
   :<|> deleteMedicament
   where
     allMedicaments = exPool p $ selectList [] []
-    addMedicament med = 
-      if all (>0) [medicamentHeight med, medicamentDiameter med]
-      then exPool p $ insert med
-      else throwError $ err400 {
-        errBody = "Diameter and height should be positive" }
-    deleteMedicament mid = exPool p $ delete mid
+    addMedicament med
+      | medicamentHeight med <= 0 = throwError $ err400
+          { errBody = "Height should be positive" }
+      | medicamentDiameter med <= 0 = throwError $ err400
+          { errBody = "Diameter should be positive" } 
+    addMedicament med = exPool p $ insert med
+    deleteMedicament = exPool p . delete 
 

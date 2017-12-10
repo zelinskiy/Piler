@@ -10,6 +10,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Logger (runStdoutLoggingT)
 import Data.Time
 import Control.Concurrent
+import qualified Data.Text as T
 
 import qualified Model
 import qualified Api.AuthJWT
@@ -41,6 +42,7 @@ app = do
   forkIO $ runStdoutLoggingT $ TickTack.run pool
   
   return $ serveWithContext api ctx (Api.Main.server pool cs jwt)
+
 
 startApp :: IO ()
 startApp = run port =<< app

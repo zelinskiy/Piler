@@ -38,7 +38,7 @@ type API =
     :<|> "unregister"
       :> Get '[JSON] ()
     :<|> "updrade"
-      :> Capture "status" String
+      :> Capture "purpose" SecretKeyPurpose
       :> Capture "key" String
       :> Get '[JSON] ()
     
@@ -56,10 +56,20 @@ server p me =
     getMyself = return me
     unregister = exPool p $ do      
       deleteCascade (entityKey me)
-    upgrade "silver" k = do
-      undefined
-    upgrade _ _ = throwError $ err403
-      { errBody = "unknown status" }
+    upgrade SubscribeSilver _
+      | userStatus (entityVal me) > Silver
+      = throwError $ err403
+        { errBody = "Your status already higher" }
+    upgrade SubscribeSilver k =  do
+      mbKey <- exPool p $ selectFirst
+        [ SecretKeyValue ==. k
+        , SecretKeyPurpose ==. SubscribeSilver ] []
+      case mbKey of
+        Nothing -> throwError $ err403
+          { errBody = "Key not Found" }
+        Just key -> exPool p $ do          
+          update (entityKey me) [UserStatus =. Silver]
+          delete (entityKey key)
       
 
 publicServer :: ConnectionPool -> Server PublicAPI
