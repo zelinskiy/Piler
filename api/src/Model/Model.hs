@@ -11,14 +11,10 @@
 
 module Model.Model where
 
-import Database.Persist
+
 import Database.Persist.TH
-import Data.Aeson
-import Data.Aeson.TH
 import Data.Text
-import GHC.Generics
-import Data.Time.Clock(UTCTime, getCurrentTime)
-import Numeric.Natural
+import Data.Time.Clock
 
 import Model.UserStatus as UserStatus
 import Model.SecretKeyPurpose as SecretKeyPurpose

@@ -1,29 +1,19 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ExistentialQuantification #-}
-
 module Api.Device
     ( API
     , server
     ) where
 
 import Database.Persist.Sqlite
-import Control.Monad.IO.Class
-import Servant
-import Data.Either
-import Data.Maybe
+
+import Servant hiding (route)
+
 import Control.Monad.Trans.Reader
-import Control.Monad.Logger
-import Control.Monad.Trans.Resource.Internal
-import Data.Aeson
-import GHC.Generics
+
+
+
+
 import Network.HTTP.Simple
-import Network.HTTP.Types
+
 import Data.String.Conversions
 
 import Model
@@ -52,11 +42,9 @@ type API =
            :> Capture "mid" (Key Medicament)
            :> Capture "quantity" Int
            :> Get '[JSON] DeviceStatus)
-             
-    
-
-server :: ConnectionPool -> Entity User -> Server API
-server p me =
+          
+server :: PrivateServer API
+server =
        (myDevice
   :<|> myDeviceId
   :<|> myDeviceStatus
@@ -66,7 +54,7 @@ server p me =
   :<|> dispence)
   where
     myDevice = do 
-      mbDevice <- exPool p $
+      mbDevice <- ask >>= \me -> db $ 
         selectFirst [DeviceUserId ==. entityKey me] []
       case mbDevice of
         Just d -> return d
@@ -74,7 +62,7 @@ server p me =
     myDeviceId = entityKey <$> myDevice
     myDeviceStatus = do
       d <- myDevice
-      s <- exPool p $
+      s <- db $
         selectList [DeviceStorageDeviceId ==. entityKey d] []
       return DeviceStatus
         { device = entityVal d
@@ -82,7 +70,7 @@ server p me =
         
     storedOf mid = do
       did <- entityKey <$> myDevice
-      mbStorage <- exPool p $ selectFirst
+      mbStorage <- db $ selectFirst
               [ DeviceStorageMedicamentId ==. mid
               , DeviceStorageDeviceId ==. did ] []
       return $ case mbStorage of
@@ -91,7 +79,7 @@ server p me =
          
     updateStorage mid n = do
       did <- entityKey <$> myDevice
-      exPool p $ do
+      db $ do
         mbStorage <- selectFirst
               [ DeviceStorageMedicamentId ==. mid
               , DeviceStorageDeviceId ==. did ] []

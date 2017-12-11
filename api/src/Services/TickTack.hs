@@ -1,11 +1,7 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Services.TickTack (run) where
 
-import Servant
-import Network.Wai
 import Database.Persist.Sql hiding (get)
 import Control.Concurrent
 import Control.Monad.Logger
@@ -15,11 +11,12 @@ import qualified Data.Text as T
 import Data.Monoid
 import Control.Monad
 import Network.HTTP.Simple
-import Network.HTTP.Types
+import qualified Data.ByteString.Lazy as BL
+
 import Data.String.Conversions
 
 import Model
-import Utils
+
 
 -- Doing some scheduling
 run :: (MonadIO m, MonadLogger m)
@@ -46,12 +43,16 @@ go pool = do
     forM_ pending $ \r -> do     
       device <- exPool pool $ updateStorage r
       dispenceDevice device r      
-      return ()
-    
+      return ()    
   sleep
   go pool
   
+  
 -- send dispence command to device
+dispenceDevice :: MonadIO m
+               => Entity Device
+               -> Entity TreatmentPlanRow
+               -> m (Response BL.ByteString)
 dispenceDevice device r =          
   httpLBS
   $ setRequestMethod "GET"
@@ -69,7 +70,6 @@ dispenceDevice device r =
 -- update storages
 updateStorage r = do
   let rv = entityVal r
-      rk = entityKey r
       
   Just plan <- getEntity (treatmentPlanRowTreatmentPlanId rv)
       

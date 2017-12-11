@@ -1,32 +1,9 @@
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-
 module Api.Main(API, server) where
 
-import Network.Wai.Handler.Warp
 import Database.Persist.Sqlite
-import Control.Monad.IO.Class
-import Control.Monad.Logger (runStdoutLoggingT)
-import Data.String.Conversions
 import Servant
-import Data.Aeson
-import Servant.Server.Experimental.Auth
-import Network.Wai
-import GHC.Generics
-import Data.ByteString (ByteString)
-import Data.Map (Map, fromList)
-import qualified Data.Map as Map
 import Servant.Auth.Server
-import Data.Time
 
-import Model
 import qualified Api.Medicament
 import qualified Api.Treatment
 import qualified Api.Device
@@ -36,7 +13,8 @@ import qualified Api.Auth
 import qualified Api.Admin
 import qualified Api.Shopping
 
-
+import Model
+import Utils
 
 
 type API = 
@@ -69,21 +47,20 @@ publicServer :: ConnectionPool
              -> CookieSettings
              -> JWTSettings
              -> Server PublicApi
-publicServer p c jwt =
+publicServer p c jwt = enter (publicToNormalH p) $
        return "Greetings!"
-  :<|> Api.User.publicServer p
-  :<|> Api.AuthJWT.publicServer p c jwt
+  :<|> Api.User.publicServer
+  :<|> Api.AuthJWT.publicServer c jwt
 
 privateServer :: ConnectionPool
               -> AuthResult (Entity User)
               -> Server PrivateApi
 privateServer p (Authenticated u) =
-       Api.Medicament.server p u
-  :<|> Api.Treatment.server  p u
-  :<|> Api.Device.server     p u
-  :<|> Api.User.server       p u
-  :<|> Api.Admin.server      p u
-  :<|> Api.Shopping.server   p u
+  enter (privateToPublicH u `ver` publicToNormalH p) $
+       Api.Medicament.server
+  :<|> Api.Treatment.server
+  :<|> Api.Device.server
+  :<|> Api.User.server
+  :<|> Api.Admin.server
+  :<|> Api.Shopping.server
 privateServer _ _ = throwAll err401
-
-

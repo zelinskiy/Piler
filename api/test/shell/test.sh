@@ -2,6 +2,10 @@
 
 #some random shell
 
+grep -rn "_ <-"
+
+tree --charset=ascii --dirsfirst
+
 date -u +"%Y-%m-%dT%H:%M:%SZ" --date "10 seconds"
 
 sqlite3 sqlite.db  'INSERT INTO user VALUES ("user1@mail.com", "pass", "normal", 0);'

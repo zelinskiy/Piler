@@ -31,6 +31,11 @@ spec :: WaiSession ByteString -> SpecWith Application
 spec getJwt = do
 
   describe "shopping list" $ do
+    it "seizes the means" $ do
+      jwt <- getJwt
+      getAuth jwt "/private/admin/seize/the/means"
+        `shouldRespondWith` 200
+    
     it "returns all lists" $ do
       jwt <- getJwt
       getAuth jwt (root <> "/list/all")

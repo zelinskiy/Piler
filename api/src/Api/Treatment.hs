@@ -1,21 +1,9 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ExistentialQuantification #-}
-
 module Api.Treatment (API, server) where
 
 import Database.Persist.Sqlite
-import Control.Monad.IO.Class
 import Servant
-import Data.Either
 import Data.Maybe
 import Control.Monad.Trans.Reader
-import Control.Monad.Logger
-import Control.Monad.Trans.Resource.Internal
 
 import Model
 import JsonModel (FullTreatmentPlan(..))
@@ -54,8 +42,8 @@ type API =
       
       
 -- balance parenthesis /new/plan -> plan/new
-server :: ConnectionPool -> Entity User -> Server API
-server p me =
+server :: PrivateServer API
+server =
        (myFullTreatmentPlans
         :<|> myTreatmentPlans
         :<|> myTreatmentPlanRows)
@@ -67,41 +55,41 @@ server p me =
   :<|> (updateTreatmentPlan
         :<|> updateTreatmentPlanRow)
   where
-    myDevice = fromJust
-      <$> fmap entityKey <$> selectFirst
+    myDevice = ask >>= \me -> db $
+      fromJust <$> fmap entityKey <$> selectFirst
         [DeviceUserId ==. entityKey me] []
     
-    myTreatmentPlans = exPool p $ do
+    myTreatmentPlans = do
       did <- myDevice
-      selectList [TreatmentPlanDeviceId ==. did] []
+      db $ selectList [TreatmentPlanDeviceId ==. did] []
       
     myTreatmentPlanRows = do
       plans <- map entityKey <$> myTreatmentPlans
-      exPool p $
+      db $
         selectList [TreatmentPlanRowTreatmentPlanId <-. plans] []
         
     myFullTreatmentPlans = do
       plans <- myTreatmentPlans
       rows <- map entityVal <$> myTreatmentPlanRows
-      let pred p r = treatmentPlanRowTreatmentPlanId r
+      let filt p r = treatmentPlanRowTreatmentPlanId r
                              == entityKey p
       return $ map (\p -> FullTreatmentPlan
             { treatmentPlan = entityVal p
-            , treatmentPlanRows = filter (pred p) rows })
+            , treatmentPlanRows = filter (filt p) rows })
         plans
         
-    addTreatmentPlan = exPool p $ do
+    addTreatmentPlan = do
       did <- myDevice
-      insert $ TreatmentPlan did
+      db $ insert $ TreatmentPlan did
       
-    addTreatmentPlanRow = exPool p . insert
+    addTreatmentPlanRow = db . insert
     
-    deleteTreatmentPlan = exPool p . delete
+    deleteTreatmentPlan = db . delete
     
-    deleteTreatmentPlanRow = exPool p . delete
+    deleteTreatmentPlanRow = db . delete
     
     updateTreatmentPlan pid plan =
-      exPool p $ replace pid plan
+      db $ replace pid plan
       
     updateTreatmentPlanRow rid row =
-      exPool p $ replace rid row
+      db $ replace rid row

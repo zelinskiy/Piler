@@ -1,6 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
+
 module Model.SecretKeyPurpose where
 
 import Database.Persist.TH
@@ -11,7 +10,7 @@ import Text.Read
 import qualified Data.Text as T
 import Web.HttpApiData
 import Test.QuickCheck
-import Test.QuickCheck.Instances
+
 import Data.DeriveTH
 
 data SecretKeyPurpose

@@ -1,27 +1,16 @@
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 module Api.Shopping
     ( API
     , server
     ) where
 
 import Database.Persist.Sqlite
-import Control.Monad.IO.Class
 import Servant
-import Servant.Server.Internal.RoutingApplication
-import Control.Monad.Except
-import Control.Exception
+import Control.Monad.Trans.Reader
 
 import Model
 import Utils
 
--- todo: parametrised CRUD API & server
+
 type API =
      "list" :> ("all"
             :> Get '[JSON] [Entity ShoppingList]
@@ -57,11 +46,10 @@ type API =
              :> Capture "lid" (Key ShoppingList) 
              :> Capture "mid" (Key Medicament)
              :> Delete '[JSON] ())
--- TODO: Fancy route combinator or else
-server :: ConnectionPool -> Entity User -> Server API
-server p me | userStatus (entityVal me) < Silver
-  = throw err401 
-server p me = 
+
+     
+server :: PrivateServer API
+server = enterRole (>= Silver) $
   (allLists
     :<|> getList
     :<|> newList
@@ -74,27 +62,30 @@ server p me =
     :<|> updateRow
     :<|> deleteRow)
   where
-    allLists = exPool p $
+    
+    allLists = ask >>= \me -> db $
       selectList [ShoppingListUserId ==. entityKey me] []
-
+    
     getList =
-      exPool p . get
-    newList name = exPool p $ insert $
-      ShoppingList name (entityKey me)
+      db . get
+    newList name = do
+      me <- ask
+      db $ insert $ ShoppingList name (entityKey me)
     updateList k =
-      exPool p . replace k
+      db . replace k
     deleteList =
-      exPool p . delete
+      db . delete
 
-    allRows lid = exPool p $
-      selectList [ShoppingListRowShoppingListId ==. lid] []
+    allRows lid =
+      db $ selectList
+        [ShoppingListRowShoppingListId ==. lid] []
 
     getRow lid mid =
-      exPool p $ get (ShoppingListRowKey lid mid)
+      db $ get $ ShoppingListRowKey lid mid
     newRow =
-      exPool p . insert
+      db . insert
     updateRow lid mid =
-      exPool p . replace (ShoppingListRowKey lid mid)
+      db . replace (ShoppingListRowKey lid mid)
     deleteRow lid mid =
-      exPool p $ delete (ShoppingListRowKey lid mid)
+      db $ delete $ ShoppingListRowKey lid mid
 
