@@ -10,7 +10,7 @@ date -u +"%Y-%m-%dT%H:%M:%SZ" --date "10 seconds"
 
 sqlite3 sqlite.db  'INSERT INTO user VALUES ("user1@mail.com", "pass", "normal", 0);'
 
-find . -name '*.hs' | xargs wc -l
+find ./ -name '*.hs' -not -path './.stack-work/*' -not -path './test/*' | xargs wc -l
 
 sqlite3 sqlite.db "DELETE FROM user WHERE email = 'test@mail.com'; DELETE FROM device WHERE ip = '127.0.0.1'"
 

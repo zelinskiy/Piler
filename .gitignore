@@ -26,3 +26,12 @@ tags
 /_site/
 /.dir-locals.el
 /.git/
+
+node_modules/
+bower_components/
+output/
+dist/
+static/dist/
+.psci_modules
+npm-debug.log
+**DS_Store
