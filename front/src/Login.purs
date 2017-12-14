@@ -30,7 +30,7 @@ import Network.HTTP.Affjax (AJAX)
 import Control.Monad.Eff.Console (CONSOLE, error, log)
 
 import Types.Login (Login(..), defaultLogin)
-import Utils.Request(postJson, getJsonAuth, JWT)
+import Utils.Request(postJson, JWT)
 import Utils.Other(trimAny)
 
 serverRoot :: String
@@ -88,7 +88,6 @@ foldp SignInRequest st =
       pure $ Just $ SignInResult ret
     ]
   }
-
 
 view :: State -> HTML Event
 view { login: Login { email: email, pass:pass }

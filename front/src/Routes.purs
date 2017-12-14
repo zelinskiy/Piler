@@ -1,21 +1,19 @@
 module Routes where
 
 import Control.Alt ((<|>))
-import Control.Apply ((<*), (*>))
-import Data.Functor ((<$), (<$>))
+import Control.Apply ((<*))
+import Data.Functor ((<$))
 import Data.Function (($))
 import Data.Maybe (fromMaybe)
-import Pux.Router (param, router, lit, int, end)
-
-import Utils.Request (JWT)
+import Pux.Router (router, lit, end)
 
 data Route
   = Login
-  | Medicament JWT
+  | Medicament
   | NotFound
 
 match :: String -> Route
 match url = fromMaybe NotFound $ router url $
   Login <$ end
   <|>
-  Medicament <$> (lit "medicaments" *> param "jwt") <* end
+  Medicament <$ (lit "medicaments") <* end
