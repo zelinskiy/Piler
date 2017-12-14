@@ -20,3 +20,7 @@ instance encodeJsonLogin :: EncodeJson Login where
      = "email" := e
     ~> "pass" := p
     ~> jsonEmptyObject
+
+defaultLogin :: Login
+defaultLogin = Login { email: "user1@mail.com"
+                     , pass: "pass" }
