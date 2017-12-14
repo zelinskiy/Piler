@@ -1,4 +1,10 @@
-module Login.App where
+module Login( State(..)
+            , Event(..)
+            , Effects(..)
+            , foldp
+            , view
+            , init
+            ) where
 
 import Prelude
 
@@ -23,7 +29,6 @@ import Network.HTTP.StatusCode(StatusCode(..))
 import Network.HTTP.Affjax (AJAX)
 import Control.Monad.Eff.Console (CONSOLE, error, log)
 
-
 import Types.Login (Login(..), defaultLogin)
 import Utils.Request(postJson, getJsonAuth, JWT)
 import Utils.Other(trimAny)
@@ -31,67 +36,46 @@ import Utils.Other(trimAny)
 serverRoot :: String
 serverRoot = "http://localhost:8080/"
 
-newtype State = State
-                { login :: Login
-                , jwt :: Maybe JWT
-                , error :: String }
+type State = { login :: Login
+             , jwt :: Maybe JWT
+             , error :: String }
 
 data Event
   = SignInRequest
   | SignInResult (Either String JWT)
   | EmailChange DOMEvent
   | PasswordChange DOMEvent
--- Second part
-  | GetAllMeds
-  | ShowAllMeds String
-  | SignOutRequest
-    
-defaultState :: State
-defaultState =
-  State { login: defaultLogin
-        , jwt: Nothing
-        , error: "" }
+
+
+type Effects fx =
+  ( ajax :: AJAX
+  , console :: CONSOLE
+  , dom :: DOM | fx)
 
 init :: State
-init = defaultState
+init = { login: defaultLogin
+       , jwt: Nothing
+       , error: "" }
 
 foldp :: forall fx. Event
       -> State
-      -> EffModel State Event
-      ( ajax :: AJAX
-      , console :: CONSOLE
-      , dom :: DOM | fx)
-
-foldp (EmailChange ev) (State st@{ login: Login l }) =
-  noEffects $ State $ st { login = Login $ l { email = targetValue ev } }
+      -> EffModel State Event (Effects fx)
+foldp (EmailChange ev) st@{ login: Login l } =
+  noEffects $ st { login = Login $ l { email = targetValue ev } }
   
-foldp (PasswordChange ev) (State st@{ login: Login l }) =
-  noEffects $ State $ st { login = Login $ l { pass = targetValue ev } }
+foldp (PasswordChange ev) st@{ login: Login l } =
+  noEffects $ st { login = Login $ l { pass = targetValue ev } }
   
-foldp (SignInResult (Left err)) (State st) =
-  { state: State $ st { error = err }
+foldp (SignInResult (Left err)) st =
+  { state: st { error = err }
   , effects: [ liftEff $ error err *> pure Nothing ] }
   
-foldp (SignInResult (Right jwt)) (State st) =
-  { state: State $ st { jwt = Just jwt }
+foldp (SignInResult (Right jwt)) st =
+  { state: st { jwt = Just jwt }
   , effects: [ liftEff $ log jwt *> pure Nothing ] }
   
-foldp GetAllMeds st@(State {jwt: Just jwt}) =
+foldp SignInRequest st =  
   { state: st
-  , effects: [ do
-      let path = serverRoot <> "private/medicament/all/"
-      res <- attempt $ getJsonAuth jwt path
-      pure $ Just $ ShowAllMeds $ case res of
-        Left e -> show e
-        Right r -> show r.response
-    ]
-  }
-
-foldp GetAllMeds (State st@{jwt: Nothing})  =
-  noEffects $ State $ st { error = "Not logged" }
-
-foldp SignInRequest (State st) =  
-  { state: State st
   , effects: [ do
       let path = serverRoot <> "public/jwt/login/"
       res <- attempt $ postJson path (encodeJson st.login)
@@ -105,20 +89,10 @@ foldp SignInRequest (State st) =
     ]
   }
 
-foldp SignOutRequest _ = noEffects init
-
-foldp (ShowAllMeds m) (State st) =
-  noEffects $ State $ st { error = m }
 
 view :: State -> HTML Event
-view (State { login: Login { email: email, pass:pass }, error: e, jwt: Just _}) = do
-  p ! style (color green) $ text "You are logged in."
-  button ! type' "button" #! onClick (const SignOutRequest) $ text "Log out"
-  br
-  button ! type' "button" #! onClick (const GetAllMeds) $ text "Test"
-  p ! style (color red) $ text e
-  
-view (State { login: Login { email: email, pass:pass }, error: e, jwt: Nothing }) = do
+view { login: Login { email: email, pass:pass }
+     , error: e, jwt: _ } = do
   p ! style do
     color green
     $ text "Welcome to The Piler!"

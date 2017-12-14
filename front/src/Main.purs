@@ -11,14 +11,11 @@ import Signal.Channel (CHANNEL)
 import Network.HTTP.Affjax (AJAX)
 import Control.Monad.Eff.Console (CONSOLE)
 
-import Login.App (foldp, view, init)
+import App (State, Event, Effects, foldp, view, init)
 
 main :: forall fx. Eff
-        ( console :: CONSOLE
-        , ajax :: AJAX
-        , channel :: CHANNEL
-        , dom :: DOM
-        , exception :: EXCEPTION | fx) Unit
+        ( channel :: CHANNEL
+        , exception :: EXCEPTION | Effects fx) Unit
 main = do
   app <- start
     { initialState: init

@@ -12,7 +12,6 @@ import Data.Argonaut (Json)
 import Network.HTTP.Affjax (Affjax, URL, affjax, defaultRequest)
 import Network.HTTP.RequestHeader(RequestHeader(..))
 
-
 type JWT = String
 
 get_ :: forall e. URL -> Affjax e Unit
