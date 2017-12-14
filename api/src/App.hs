@@ -10,6 +10,7 @@ import Control.Monad.Logger (runStdoutLoggingT)
 import Data.Time
 import Control.Concurrent
 import Data.Text(Text)
+import Network.Wai.Middleware.Cors
 
 import qualified Model
 import qualified Api.Auth
@@ -45,4 +46,18 @@ app = do
 
 
 startApp :: IO ()
-startApp = run port =<< app
+startApp = run port . myCors =<< app
+  where
+    myCors = cors (const $ Just policy)
+    policy = simpleCorsResourcePolicy
+      { corsRequestHeaders = [ "Accept"
+                             , "Accept-Language"
+                             , "Content-Language"
+                             , "Access-Control-Allow-Origin"
+                             , "Content-Type" ]
+      , corsMethods = [ "GET"
+                      , "HEAD"
+                      , "POST"
+                      , "PUT"
+                      , "PATCH"]
+      }

@@ -71,6 +71,7 @@ library
                      , transformers
                      , wai
                      , wai-extra
+                     , wai-cors
                      , warp
                      , word8
   ghc-options:       -Wall

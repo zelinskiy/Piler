@@ -1,47 +1,31 @@
 module Main where
 
-import Prelude
-import App.Events (AppEffects, Event(..), foldp)
-import App.Routes (match)
-import App.State (State, init)
-import App.View.Layout (view)
+import Control.Bind (bind)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Exception (EXCEPTION)
+import Data.Unit (Unit)
 import DOM (DOM)
-import DOM.HTML (window)
-import DOM.HTML.Types (HISTORY)
-import Pux (CoreEffects, App, start)
-import Pux.DOM.Events (DOMEvent)
-import Pux.DOM.History (sampleURL)
+import Pux (start)
 import Pux.Renderer.React (renderToDOM)
-import Signal ((~>))
+import Signal.Channel (CHANNEL)
+import Network.HTTP.Affjax (AJAX)
+import Control.Monad.Eff.Console (CONSOLE)
 
-type WebApp = App (DOMEvent -> Event) Event State
+import Login.App (foldp, view, init)
 
-type ClientEffects = CoreEffects (AppEffects (history :: HISTORY, dom :: DOM))
-
-main :: String -> State -> Eff ClientEffects WebApp
-main url state = do
-  -- | Create a signal of URL changes.
-  urlSignal <- sampleURL =<< window
-  
-  -- | Map a signal of URL changes to PageView actions.
-  let routeSignal = urlSignal ~> \r -> PageView (match r)
-
-  -- | Start the app.
+main :: forall fx. Eff
+        ( console :: CONSOLE
+        , ajax :: AJAX
+        , channel :: CHANNEL
+        , dom :: DOM
+        , exception :: EXCEPTION | fx) Unit
+main = do
   app <- start
-    { initialState: state
+    { initialState: init
     , view
     , foldp
-    , inputs: [routeSignal] }
+    , inputs: []
+    }
 
-  -- | Render to the DOM
   renderToDOM "#app" app.markup app.input
-
-  -- | Return app to be used for hot reloading logic in support/client.entry.js
-  pure app
-
-initialState :: State
-initialState = init "/"
-
-
 

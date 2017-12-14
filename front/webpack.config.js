@@ -1,4 +1,10 @@
-const appConfig = require('./src/App/Config.js').config
+const appConfig = {
+  title: 'The Piler',
+  public_path: process.env.NODE_ENV === 'production'
+               ? '/dist/'
+               : 'http://localhost:7000/dist/'
+}
+
 const path = require('path')
 const webpack = require('webpack')
 const isProd = process.env.NODE_ENV === 'production'
