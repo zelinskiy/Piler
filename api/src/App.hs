@@ -49,15 +49,28 @@ startApp :: IO ()
 startApp = run port . myCors =<< app
   where
     myCors = cors (const $ Just policy)
-    policy = simpleCorsResourcePolicy
-      { corsRequestHeaders = [ "Accept"
-                             , "Accept-Language"
-                             , "Content-Language"
-                             , "Access-Control-Allow-Origin"
-                             , "Content-Type" ]
+    policy = CorsResourcePolicy
+      { corsOrigins = Nothing
       , corsMethods = [ "GET"
                       , "HEAD"
                       , "POST"
+                      , "DELETE"
                       , "PUT"
                       , "PATCH"]
-      }
+      , corsRequestHeaders = [ "Accept"
+                             , "Accept-Language"
+                             , "Content-Language"
+                             , "Access-Control-Allow-Origin"
+                             , "Content-Type"
+                             , "Set-Cookie"
+                             , "Authorization"]
+      , corsExposedHeaders = Just [ "Access-Control-Allow-Origin"
+                                  , "Content-Type"
+                                  , "Set-Cookie" ]
+      , corsMaxAge = Nothing
+      , corsVaryOrigin = False
+      , corsRequireOrigin = False
+      , corsIgnoreFailures = False }
+
+    
+

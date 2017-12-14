@@ -1,13 +1,16 @@
 module Login.App where
 
 import Prelude
+import Data.Array(length) as A
 import Control.Monad.Eff.Class (liftEff)
 import Data.Either(Either(..), either)
 import Data.Maybe (Maybe(..), isJust)
 import Data.Foldable (find)
 import Control.Monad.Aff (attempt)
-import Data.String(stripPrefix, stripSuffix, Pattern(..), joinWith)
-
+import Data.String(stripPrefix, stripSuffix, Pattern(..), joinWith, take, drop, length)
+import Data.MediaType (MediaType(..))
+import Data.Foreign(Foreign)
+import Data.Semigroup((<>))
 
 import DOM (DOM)
 import Pux (EffModel, noEffects)
@@ -19,8 +22,8 @@ import Text.Smolder.HTML.Attributes (name, type', value)
 import Text.Smolder.Markup ((!), (#!), text)
 import CSS (color, red, green)
 import Data.Argonaut (encodeJson, Json)
-import Data.HTTP.Method (Method (POST))
-import Network.HTTP.Affjax (Affjax, AJAX, URL, affjax, post_, defaultRequest)
+import Data.HTTP.Method (Method (POST, GET))
+import Network.HTTP.Affjax (Affjax, AJAX, URL, affjax, post_, defaultRequest, get)
 import Network.HTTP.RequestHeader(RequestHeader(..))
 import Network.HTTP.ResponseHeader(responseHeaderName, responseHeaderValue)
 import Control.Monad.Eff.Console (CONSOLE, error, logShow)
@@ -38,6 +41,7 @@ data Event
   | SignInResult (Either String JWT)
   | EmailChange DOMEvent
   | PasswordChange DOMEvent
+  | TestEvent DOMEvent
 
 init :: State
 init = State
@@ -49,14 +53,31 @@ init = State
 get_ :: forall e. URL -> Affjax e Unit
 get_ u = affjax $ defaultRequest { url = u }
 
-postJson :: forall e. URL -> Json -> Affjax e Unit
+postJson :: forall e. URL -> Json -> Affjax e String
 postJson u d =
-  affjax $ defaultRequest
-    { method = Left POST
-    , url = u
-    , headers = [ RequestHeader "Access-Control-Allow-Origin" "*"
-                , RequestHeader "Content-Type" "application/json" ]
-    , content = Just d }
+  affjax $ 
+    { method: Left POST
+    , url: u
+    , headers: [ RequestHeader "Access-Control-Allow-Origin" "*"
+               , Accept (MediaType "*/*")
+               , ContentType (MediaType "application/json") ]
+    , content: Just d
+    , username: Nothing
+    , password: Nothing
+    , withCredentials: false }
+
+getJsonAuth :: forall e. JWT -> URL -> Affjax e Json
+getJsonAuth jwt u =
+  affjax $ 
+    { method: Left GET
+    , url: u
+    , headers: [ RequestHeader "Authorization" ("Bearer " <> jwt)
+               , Accept (MediaType "*/*")
+               , ContentType (MediaType "application/json") ]
+    , content: Nothing :: Maybe Unit
+    , username: Nothing
+    , password: Nothing
+    , withCredentials: false }
 
 foldp :: forall fx. Event
       -> State
@@ -76,28 +97,26 @@ foldp (SignInResult (Left err)) (State st) =
   }
 foldp (SignInResult (Right jwt)) (State st) =
   noEffects $ State $ st { error = jwt }
+foldp (TestEvent _) (State st) =
+  { state: State st
+  , effects: [ do
+      let path = "http://localhost:8080/private/medicament/all"
+      res <- attempt $ getJsonAuth st.error path
+      pure $ Just $ SignInResult
+        $ either (Left <<< show) (Right <<< show <<< _.response) res
+    ]
+  }
 foldp (SignInRequest _) (State st) =  
   { state: State st
   , effects: [ do
       let path = "http://localhost:8080/public/jwt/login"
       res <- attempt $ postJson path (encodeJson st.login) 
-      let mbBearer = either (Left <<< show) allHeaders res
-      pure $ Just $ SignInResult $ case mbBearer of
-        Right jwt -> Right jwt
-        --Right Nothing -> Left "Could not find or parse JWT"
-        Left err -> Left err
+      pure $ Just $ SignInResult
+        $ either (Left <<< show) (Right <<< drop 1
+                                  <<< (\s -> take (length s - 1) s)
+                                  <<< _.response) res
     ]
   }
-  where
-    allHeaders = Right <<< joinWith ";" <<< map responseHeaderName
-                 <<< (\r -> r.headers)
-    --extractJwt = Right <<< join <<< find isJust
-    --    <<< map pred <<< (\r -> r.headers)
-    pred r =
-        responseHeaderName r #
-        stripPrefix (Pattern "") >>=
-        stripSuffix (Pattern "")
-    pred _ = Nothing
   
   
 
@@ -107,6 +126,7 @@ view (State { login: Login { email: email, pass:pass }, error: e }) = do
     color green
     $ text "Welcome!"
   p ! style (color red) $ text e
+  button ! type' "button" #! onClick TestEvent $ text "Test"
   form ! name "signin" #! onSubmit SignInRequest $ do
     input ! type' "text" ! value email #! onChange EmailChange
     p $ text email
