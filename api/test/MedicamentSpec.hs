@@ -4,7 +4,7 @@ module MedicamentSpec (spec) where
 
 import Test.Hspec
 import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
+
 import Network.HTTP.Types.Method
 import Network.HTTP.Types.Header
 import Data.ByteString.Internal

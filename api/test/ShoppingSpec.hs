@@ -5,8 +5,7 @@ module ShoppingSpec (spec) where
 
 import Test.Hspec hiding (pending)
 import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
-import Test.HUnit.Base
+import Control.Monad.IO.Class
 import Network.HTTP.Types.Method
 import Network.HTTP.Types.Header
 import Data.ByteString.Internal
@@ -14,10 +13,10 @@ import Network.Wai.Test (simpleBody)
 import Data.String.Conversions
 import Data.Aeson
 import Network.Wai
-import Data.Time.Clock
+
 import Database.Persist.Sqlite
-import Servant
-import Test.Hspec.Wai.Internal
+
+
 import Network.Wai.Test hiding (request)
 import Control.Exception
 import Data.Maybe
@@ -25,6 +24,7 @@ import Control.Monad
 
 import Model
 
+fall :: MonadIO m => String -> m a
 fall msg = liftIO (throwIO (WaiTestFailure msg))
 
 spec :: WaiSession ByteString -> SpecWith Application

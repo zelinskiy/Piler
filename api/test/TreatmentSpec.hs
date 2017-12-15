@@ -1,11 +1,12 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 module TreatmentSpec (spec) where
 
 import Test.Hspec
 import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
+
 import Network.HTTP.Types.Method
 import Network.HTTP.Types.Header
 import Data.ByteString.Internal
@@ -15,15 +16,9 @@ import Data.Aeson
 import Network.Wai
 import Data.Time.Clock
 import Database.Persist.Sqlite
-import Servant
-import Test.Hspec.Wai.Internal
-import Network.Wai.Test hiding (request)
-import Control.Exception
 import Data.Maybe
 
 import Model
-
-fall msg = liftIO (throwIO (WaiTestFailure msg))
 
 spec :: WaiSession ByteString -> SpecWith Application
 spec getJwt = do
@@ -80,19 +75,11 @@ spec getJwt = do
     defHeaders jwt =
       [ (hContentType,"application/json")
       , (hAuthorization, "Bearer " <> jwt)]
-    getAuth jwt route = request methodGet route (defHeaders jwt) ""
+    getAuth jwt route = request methodGet route
+                        (defHeaders jwt) ""
     deleteAuth jwt route = request methodDelete route (defHeaders jwt) ""
     postAuth jwt route body =
       request methodPost route (defHeaders jwt) body
-    addTestItemRequest jwt n d h =
-      request methodPost
-      (root `mappend` "/add")
-      (defHeaders jwt)
-      (encode $ Medicament
-        { medicamentName = n
-        , medicamentDiameter = d
-        , medicamentHeight = h
-        , medicamentDescription = Nothing})
     
 
 

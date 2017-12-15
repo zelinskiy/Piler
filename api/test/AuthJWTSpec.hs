@@ -5,10 +5,10 @@ module AuthJWTSpec (spec) where
 
 import Test.Hspec
 import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
+
 import Network.HTTP.Types.Method
 import Network.HTTP.Types.Header
-import Data.ByteString.Internal
+
 import Network.Wai.Test hiding (request)
 import Data.String.Conversions
 import Data.Aeson
@@ -19,16 +19,10 @@ import Control.DeepSeq
 import Control.Exception
 import Network.Wai
 
-import Model
 import Api.AuthJWT (Login(..))
 
 assertFailure :: String -> Session ()
 assertFailure msg = msg `deepseq` liftIO (throwIO (WaiTestFailure msg))
-
-findCookie headers cname =
-  let pred (h,c) = h == "Set-Cookie"
-                   && cname `isPrefixOf` cs c
-  in not $ null $ filter pred headers
 
 spec :: Login -> SpecWith Application
 spec login = do
@@ -44,7 +38,12 @@ spec login = do
         when (not $ findCookie hs "XSRF-TOKEN")
           (assertFailure "XSRF token not returned")        
       return ()
-        
+  where
+    findCookie headers cname =
+      let p (h,c) = h == "Set-Cookie"
+                       && cname `isPrefixOf` cs c
+      in not $ null $ filter p headers
+
     
 
     
