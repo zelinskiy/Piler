@@ -11,13 +11,10 @@ import Prelude
 import Data.Either(Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Foreign (toForeign)
-import Data.Functor(map)
 import Control.Monad.Eff.Class (liftEff)
 
-import Pux (EffModel, noEffects, mapEffects, mapState)
-import Pux.DOM.Events (DOMEvent)
+import Pux (EffModel, mapEffects, mapState)
 import Pux.DOM.HTML (HTML, mapEvent)
-import DOM.Event.Event (preventDefault)
 import DOM.HTML.History (DocumentTitle(..), URL(..), pushState)
 import DOM.HTML.Types (HISTORY)
 import DOM.HTML.Window (history)
@@ -25,86 +22,81 @@ import DOM.HTML (window)
 import Text.Smolder.HTML (h1)
 import Text.Smolder.Markup (text)
 
-import Routes (Route(..), match)
-import Login (State, Event(SignInResult), Effects, foldp, view, init) as LoginApp
-import Medicaments (State, Event(SignOutRequest), Effects, foldp, view, init) as MedicamentsApp
+import Routes as Route
+import LoginPage as LoginPage
+import HomePage as HomePage
 
 -- TODO:
 -- make navbar component
 
-type State = { currentRoute :: Route
-             , loginState :: LoginApp.State
-             , medicamentsState :: MedicamentsApp.State }
+type State = { currentRoute :: Route.Route
+             , loginState :: LoginPage.State
+             , homeState :: HomePage.State }
 
 data Event
-  = LoginEvent LoginApp.Event
-  | MedicamentsEvent MedicamentsApp.Event
-  | PageView Route
-  | Navigate String DOMEvent
+  = LoginPageEvent LoginPage.Event
+  | HomePageEvent HomePage.Event
+  | Navigate Route.Route
 
 type Effects fx =
-  MedicamentsApp.Effects
-  (LoginApp.Effects
+  HomePage.Effects
+  (LoginPage.Effects
    (history :: HISTORY | fx))
 
 init :: State
-init = { currentRoute: Login
-       , loginState: LoginApp.init
-       , medicamentsState: MedicamentsApp.init "" }
+init = { currentRoute: Route.Login
+       , loginState: LoginPage.init
+       , homeState: HomePage.init "JWT" }
 
 foldp :: forall fx. Event
       -> State
       -> EffModel State Event (Effects fx)
-
-foldp (Navigate url ev) st =
-  { state: st
+  
+foldp (Navigate route) st =
+  { state: st { currentRoute = route }
   , effects: [
       liftEff do
-        preventDefault ev
         h <- history =<< window
+        let url = Route.toString route
         pushState (toForeign {}) (DocumentTitle "") (URL url) h
-        pure $ Just $ PageView (match url)
+        pure Nothing
     ]
   }
-  
-foldp (PageView route) st =
-  noEffects $ st { currentRoute = route }
 
-foldp (LoginEvent ev) st =
-  LoginApp.foldp ev st.loginState
-  # mapEffects LoginEvent
+foldp (LoginPageEvent ev) st =
+  LoginPage.foldp ev st.loginState
+  # mapEffects LoginPageEvent
   # mapState stateTransform
   where
     stateTransform s =
       let st' = st { loginState = s  }
       in case ev of
-        LoginApp.SignInResult (Right jwt) ->
-          st' { currentRoute = Medicament
-              , medicamentsState =
-                st'.medicamentsState { jwt = jwt }}
+        LoginPage.SignInResult (Right jwt) ->
+          st' { currentRoute = Route.Home
+              , homeState = st'.homeState { jwt = jwt }}
         _ -> st'
         
   
-foldp (MedicamentsEvent ev) st =
-  MedicamentsApp.foldp ev st.medicamentsState
-  # mapEffects MedicamentsEvent
+foldp (HomePageEvent ev) st =
+  HomePage.foldp ev st.homeState
+  # mapEffects HomePageEvent
   # mapState stateTransform
   where
     stateTransform s =
-      let st' = st { medicamentsState = s  }
+      let st' = st { homeState = s  }
       in case ev of
-        MedicamentsApp.SignOutRequest ->
-          st' { currentRoute = Login }
+        HomePage.SignOutRequest ->
+          st' { currentRoute = Route.Login }
         _ -> st'
 
   
 view :: State -> HTML Event
 view st =
   case st.currentRoute of
-    Login ->
-      mapEvent LoginEvent
-      $ LoginApp.view st.loginState
-    Medicament ->
-      mapEvent MedicamentsEvent
-      $ MedicamentsApp.view st.medicamentsState
-    NotFound -> h1 $ text "Not Found"
+    Route.Login ->
+      mapEvent LoginPageEvent
+      $ LoginPage.view st.loginState
+    Route.Home ->
+      mapEvent HomePageEvent
+      $ HomePage.view st.homeState
+    Route.NotFound -> h1 $ text "Not Found"

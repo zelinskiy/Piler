@@ -9,11 +9,18 @@ import Pux.Router (router, lit, end)
 
 data Route
   = Login
-  | Medicament
+  | Home
   | NotFound
+
+
+toString :: Route -> String
+toString Login = "/login"
+toString Home = "/"
+toString NotFound = "/void" 
+
 
 match :: String -> Route
 match url = fromMaybe NotFound $ router url $
   Login <$ end
   <|>
-  Medicament <$ (lit "medicaments") <* end
+  Home <$ (lit "home") <* end

@@ -1,11 +1,9 @@
 module Types.Login where
 
-import Prelude
-
 import Data.Argonaut (class EncodeJson, class DecodeJson)
 import Data.Generic (class Generic)
 
-import Utils.Other
+import Utils.Other(genericDecodeNewtypeJson, genericEncodeNewtypeJson)
 
 newtype Login = Login
                 { email :: String

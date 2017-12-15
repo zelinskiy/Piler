@@ -1,10 +1,10 @@
-module Login( State(..)
-            , Event(..)
-            , Effects(..)
-            , foldp
-            , view
-            , init
-            ) where
+module LoginPage( State(..)
+                , Event(..)
+                , Effects(..)
+                , foldp
+                , view
+                , init
+                ) where
 
 import Prelude
 
