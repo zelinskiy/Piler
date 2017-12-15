@@ -3,7 +3,7 @@ module Types.Login where
 import Data.Argonaut (class EncodeJson, class DecodeJson)
 import Data.Generic (class Generic)
 
-import Utils.Other(genericDecodeNewtypeJson, genericEncodeNewtypeJson)
+import Data.Argonaut.Generic.Aeson (encodeJson, decodeJson) as A
 
 newtype Login = Login
                 { email :: String
@@ -17,9 +17,9 @@ defaultLogin = Login { email: "user1@mail.com"
 derive instance genericLogin :: Generic Login
 
 instance decodeJsonLogin :: DecodeJson Login where
-  decodeJson = genericDecodeNewtypeJson
+  decodeJson = A.decodeJson
 
 instance encodeJsonLogin :: EncodeJson Login where
-  encodeJson = genericEncodeNewtypeJson
+  encodeJson = A.encodeJson
 
 

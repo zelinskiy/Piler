@@ -14,9 +14,9 @@ data Route
 
 
 toString :: Route -> String
-toString Login = "/login"
-toString Home = "/"
-toString NotFound = "/void" 
+toString Login = "/"
+toString Home = "/home"
+toString NotFound = "/notfound" 
 
 
 match :: String -> Route

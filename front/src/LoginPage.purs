@@ -12,19 +12,25 @@ import Data.Either(Either(..))
 import Data.Maybe (Maybe(..))
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Aff (attempt)
+import Control.Apply(lift3, lift2)
 
 import Data.Argonaut (encodeJson)
 
 import DOM (DOM)
 import Pux (EffModel, noEffects)
-import Pux.DOM.Events (DOMEvent, onSubmit, onChange, onClick, targetValue)
+import Pux.DOM.Events
+  (DOMEvent,
+   onSubmit,
+   onChange,
+   onClick,
+   targetValue)
 import Pux.DOM.HTML.Attributes (style)
 import Pux.DOM.HTML (HTML)
 import Text.Smolder.HTML (button, form, input, br, p)
 import Text.Smolder.HTML.Attributes (name, type', value)
 import Text.Smolder.Markup ((!), (#!), text)
 import CSS (color, red, green)
-
+  
 import Network.HTTP.StatusCode(StatusCode(..))
 import Network.HTTP.Affjax (AJAX)
 import Control.Monad.Eff.Console (CONSOLE, error, log)
@@ -71,8 +77,10 @@ foldp (SignInResult (Left err)) st =
   , effects: [ liftEff $ error err *> pure Nothing ] }
   
 foldp (SignInResult (Right jwt)) st =
-  { state: st { jwt = Just jwt }
-  , effects: [ liftEff $ log jwt *> pure Nothing ] }
+  { state: st {jwt = Just jwt }
+  , effects:
+    [ liftEff $ log jwt *> pure Nothing ]
+  }
   
 foldp SignInRequest st =  
   { state: st
@@ -91,7 +99,7 @@ foldp SignInRequest st =
 
 view :: State -> HTML Event
 view { login: Login { email: email, pass:pass }
-     , error: e, jwt: _ } = do
+     , error: e } = do
   p ! style do
     color green
     $ text "Welcome to The Piler!"

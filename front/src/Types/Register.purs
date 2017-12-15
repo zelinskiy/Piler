@@ -3,7 +3,7 @@ module Types.Register where
 import Data.Argonaut (class EncodeJson, class DecodeJson)
 import Data.Generic (class Generic)
 
-import Utils.Other(genericDecodeNewtypeJson, genericEncodeNewtypeJson)
+import Data.Argonaut.Generic.Aeson (encodeJson, decodeJson) as A
 
 newtype Register = Register
                    { email :: String
@@ -18,9 +18,9 @@ defaultRegister = Register { email: "user1@mail.com"
 derive instance genericRegister :: Generic Register
 
 instance decodeJsonLogin :: DecodeJson Register where
-  decodeJson = genericDecodeNewtypeJson
+  decodeJson = A.decodeJson
 
 instance encodeJsonLogin :: EncodeJson Register where
-  encodeJson = genericEncodeNewtypeJson
+  encodeJson = A.encodeJson
 
 

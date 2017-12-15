@@ -13,9 +13,11 @@ import Data.Maybe (Maybe(..))
 import Data.Foreign (toForeign)
 import Control.Monad.Eff.Class (liftEff)
 
-import Pux (EffModel, mapEffects, mapState)
+import Pux (EffModel, mapEffects, mapState, noEffects)
 import Pux.DOM.HTML (HTML, mapEvent)
-import DOM.HTML.History (DocumentTitle(..), URL(..), pushState)
+import DOM.HTML.History(DocumentTitle(..),
+                        URL(..),
+                        pushState)
 import DOM.HTML.Types (HISTORY)
 import DOM.HTML.Window (history)
 import DOM.HTML (window)
@@ -27,14 +29,14 @@ import LoginPage as LoginPage
 import HomePage as HomePage
 
 -- TODO:
--- make navbar component
 
 type State = { currentRoute :: Route.Route
              , loginState :: LoginPage.State
              , homeState :: HomePage.State }
 
 data Event
-  = LoginPageEvent LoginPage.Event
+  = InitEvent
+  | LoginPageEvent LoginPage.Event
   | HomePageEvent HomePage.Event
   | Navigate Route.Route
 
@@ -51,7 +53,9 @@ init = { currentRoute: Route.Login
 foldp :: forall fx. Event
       -> State
       -> EffModel State Event (Effects fx)
-  
+
+foldp InitEvent st = noEffects st
+
 foldp (Navigate route) st =
   { state: st { currentRoute = route }
   , effects: [
@@ -63,18 +67,19 @@ foldp (Navigate route) st =
     ]
   }
 
-foldp (LoginPageEvent ev) st =
-  LoginPage.foldp ev st.loginState
-  # mapEffects LoginPageEvent
-  # mapState stateTransform
+foldp (LoginPageEvent ev) st = res
   where
-    stateTransform s =
-      let st' = st { loginState = s  }
-      in case ev of
-        LoginPage.SignInResult (Right jwt) ->
-          st' { currentRoute = Route.Home
-              , homeState = st'.homeState { jwt = jwt }}
-        _ -> st'
+    res0 = LoginPage.foldp ev st.loginState
+        # mapEffects LoginPageEvent
+        # mapState (\s -> st { loginState = s })    
+    res = case ev of
+      LoginPage.SignInResult (Right jwt) ->
+        { state: res0.state
+              { currentRoute = Route.Home
+              , homeState = res0.state.homeState { jwt = jwt }}
+        , effects: res0.effects <>
+          [pure $ Just $ HomePageEvent $ HomePage.InitEvent] }
+      _ -> res0
         
   
 foldp (HomePageEvent ev) st =
