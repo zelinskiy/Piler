@@ -11,6 +11,7 @@
     "purescript-generics": "^4.0.0",
     "purescript-argonaut-generic-codecs": "^6.0.4",
     "purescript-psci-support": "^3.0.0",
-    "purescript-datetime": "^3.4.1"
+    "purescript-datetime": "^3.4.1",
+    "purescript-js-date": "^5.1.0"
   }
 }

@@ -7,7 +7,8 @@ import Data.Generic (class Generic)
 import Data.Argonaut.Generic.Aeson (encodeJson, decodeJson) as A
 
 newtype Medicament = Medicament
-                { name :: String
+                { id :: Int
+                , name :: String
                 , diameter :: Int
                 , height :: Int
                 , description :: Maybe String } 

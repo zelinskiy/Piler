@@ -8,10 +8,11 @@ module HomePage ( State(..)
 
 import Prelude
 
+import Data.Array(head, filter)
 import Data.String(joinWith)
 import Data.Foldable(for_)
-import Data.Either(Either(..))
-import Data.Maybe (Maybe(..))
+import Data.Either(Either(..), either)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Control.Monad.Aff (attempt, delay)
 import Data.Time.Duration (Milliseconds(Milliseconds))
 
@@ -33,21 +34,24 @@ import Network.HTTP.Affjax (AJAX)
 import Control.Monad.Eff.Console (CONSOLE)
 
 import Utils.Request(getJsonAuth, JWT, request)
+import Utils.Other(eitherEvents)
 
 import Types.Device
 import Types.Medicament
+import Types.Treatment
 
 serverRoot :: String
 serverRoot = "http://localhost:8080/"
 
 type State = { deviceStatus :: Maybe DeviceStatus
+             , treatment :: Array FullTreatmentPlan
+             , medicaments :: Array Medicament
              , jwt :: JWT
              , prompting :: Boolean
              , error :: String }
 
 data Event
   = InitEvent
-  | GetAllMeds
   | ShowDebug String
     
   | SignOutRequest
@@ -59,7 +63,13 @@ data Event
   | DontSaySecretCode
 
   | DeviceStatusRequest
-  | DeviceStatusResponse (Either String DeviceStatus)
+  | DeviceStatusResponse DeviceStatus
+
+  | TreatmentsRequest
+  | TreatmentsResponse (Array FullTreatmentPlan)
+
+  | MedicamentsRequest
+  | MedicamentsResponse (Array Medicament)
   
 
 type Effects fx =
@@ -69,6 +79,8 @@ type Effects fx =
 
 init :: JWT -> State
 init jwt = { deviceStatus: Nothing
+           , treatment: []
+           , medicaments : []
            , jwt: jwt
            , prompting: false
            , error: "" }
@@ -78,25 +90,10 @@ foldp :: forall fx. Event
       -> State
       -> EffModel State Event (Effects fx)
 
+-- Utility events
+
 foldp InitEvent st = onlyEffects st
   [delay (Milliseconds 2000.0) $> Just DeviceStatusRequest]
-
-foldp GetAllMeds st@{jwt: jwt} = onlyEffects st
-  [ let path = serverRoot <> "private/medicament/all/"
-        trans (Left e) = e
-        trans (Right ms) =
-          joinWith "\n" $ map (\(Medicament m) -> m.name) ms
-    in Just <$> ShowDebug <$> trans <$> request jwt GET path Nothing ]
-
-
-foldp GetAllMeds st@{jwt: jwt} = onlyEffects st
-  [ do
-       let path = serverRoot <> "private/medicament/all/"
-       res <- attempt $ getJsonAuth jwt path
-       pure $ Just $ ShowDebug $ case res of
-         Left e -> show e
-         Right r -> show r.response
-  ]
 
 foldp (ShowDebug m) st =
   { state: st { error = m }
@@ -112,40 +109,55 @@ foldp SubscribeRequest st =
   onlyEffects st [ pure $ Just AskSecretCode ]
   
 foldp SeizeTheMeansRequest st@{jwt: jwt} = onlyEffects st
-  [ do
-       let path = serverRoot <> "private/admin/seize/the/means"
-       res <- attempt $ getJsonAuth jwt path
-       pure $ Just $ ShowDebug $ case res of
-         Left e -> show e
-         Right r -> show r.response
-  ]
+  [ let path = serverRoot <> "private/admin/seize/the/means"
+    in eitherEvents ShowDebug ShowDebug
+       <$> request jwt GET path Nothing ]
 
 foldp AskSecretCode s = noEffects $ s {prompting = true}
 foldp DontSaySecretCode s = noEffects $ s {prompting = false}
-foldp (SaySecretCode ev) s = onlyEffects s
-  [ pure $ Just DontSaySecretCode
-  , pure $ Just $ ShowDebug "Not implemented" ]
+foldp (SaySecretCode ev) st@{jwt: jwt} =
+  { state: st { prompting = false }
+  , effects:
+    [ let path = serverRoot
+               <> "private/user/upgrade/SubscribeSilver/"
+               <> targetValue ev
+      in eitherEvents ShowDebug ShowDebug
+         <$> request jwt GET path Nothing ]
+  }
   
 -- Device
 
 foldp DeviceStatusRequest s@{ jwt: jwt } = onlyEffects s
-  [ do
-       let path = serverRoot <> "private/device/my/status/"
-       res <- attempt $ getJsonAuth jwt path
-       pure $ Just $ DeviceStatusResponse $ case res of
-         Left e -> Left $ show e
-         Right r -> case decodeJson r.response of
-           Left e -> Left $ show e
-           Right ds -> Right ds
-  ]
+  [ let path = serverRoot <> "private/device/my/status/"
+    in eitherEvents ShowDebug DeviceStatusResponse
+       <$> request jwt GET path Nothing ]
 
-foldp (DeviceStatusResponse (Left e)) s = onlyEffects s
-  [ pure $ Just $ ShowDebug e ]                   
-
-foldp (DeviceStatusResponse (Right ds)) s =
+foldp (DeviceStatusResponse ds) s =
   noEffects $ s { deviceStatus = Just ds }
 
-    
+-- Treatment
+
+foldp TreatmentsRequest st@{jwt: jwt} = onlyEffects st
+  [ let path = serverRoot <> "private/treatment/my/full/"
+    in eitherEvents ShowDebug TreatmentsResponse
+       <$> request jwt GET path Nothing ]
+
+foldp (TreatmentsResponse tps) st =
+  noEffects $ st { treatment = tps }
+
+-- Medicaments
+
+foldp MedicamentsRequest st@{jwt: jwt} = onlyEffects st
+  [ let path = serverRoot <> "private/medicament/all/"
+    in eitherEvents ShowDebug MedicamentsResponse
+       <$> request jwt GET path Nothing ]
+
+foldp (MedicamentsResponse meds) st =
+  noEffects $ st { medicaments = meds }
+
+
+
+  
 view :: State -> HTML Event
 view s@{ error: e } = do
   navigationView s
@@ -153,31 +165,13 @@ view s@{ error: e } = do
   p
     ! style (color red)
     $ text e
-  deviceView s  
+  deviceView s
+  treatmentView s
   button
     ! type' "button"
-    #! onClick (const GetAllMeds)
+    #! onClick (const MedicamentsRequest)
     $ text "Test"
   
-
-deviceView :: State -> HTML Event
-deviceView { deviceStatus: Just (DeviceStatus s) }  = do
-  h3 $ text "Your device status:"
-  p $ text $ "ip: " <> ip
-  h4 $ text "Storage:"
-  for_ s.storage renderStorage
-  where
-    ip = (\(Device d) -> d.ip) s.device
-    renderStorage (DeviceStorage { quantity: q, medicamentId: m }) =
-      p $ text $ show q <> " of " <> show m
-
-deviceView { deviceStatus: Nothing } = do
-  h3 $ text "Device not loaded"
-  button
-    #! onClick (const DeviceStatusRequest)
-    $ text "reload"
-  
-
 navigationView :: State -> HTML Event
 navigationView st | st.prompting = do
   input
@@ -208,3 +202,78 @@ navigationView _ = do
     #! onClick (const SeizeTheMeansRequest)
     $ text "☭"
 
+medicamentsView :: State -> HTML Event
+medicamentsView s@{ medicaments: [] } = do
+  h3 $ text "Medicaments ale not loaded"
+  
+medicamentsView s@{ medicaments: meds } = do  
+  h3 $ text "Medicaments database: "
+  for_ meds renderMed
+  where    
+    renderMed (Medicament m) =
+      p $ text $ joinWith " "
+        [ m.name
+        , fromMaybe "" m.description ]
+
+deviceView :: State -> HTML Event
+deviceView { deviceStatus: Just (DeviceStatus s) }  = do
+  h3 $ text "Your device status:"
+  p $ text $ "ip: " <> ip
+  h4 $ text "Storage:"
+  for_ s.storage renderStorage
+  where
+    ip = (\(Device d) -> d.ip) s.device
+    renderStorage (DeviceStorage { quantity: q, medicamentId: m }) =
+      p $ text $ show q <> " of " <> show m
+
+deviceView { deviceStatus: Nothing } = do
+  h3 $ text "Device not loaded"
+  button
+    #! onClick (const DeviceStatusRequest)
+    $ text "reload"
+  
+
+treatmentView :: State -> HTML Event
+treatmentView { treatment: [] } =
+  h3 $ text "No treatment plans"
+treatmentView st@{ treatment: tps } = do
+  h3 $ text "Your treatment schedule:"
+  for_ tps renderPlan
+  where    
+    renderPlan (FullTreatmentPlan p) = do
+      h4 $ text $ "Treatment plan #"
+        <> show (getPlanId p.treatmentPlan)
+      for_ p.treatmentPlanRows renderPlanRow
+      
+    getPlanId (TreatmentPlan p) = p.id
+    
+    renderPlanRow (TreatmentPlanRow r) =
+      p $ text $ joinWith " "
+        [ r.at
+        , show r.quantity
+        , fromMaybe "" $ getMedicamentName r.medicamentId
+        , show $ howMuchStored r.medicamentId
+        ]
+
+    getMedicamentName =
+      getMedicament st
+      >>> map (\(Medicament m) -> m.name)
+          
+    howMuchStored =
+      getMedicamentStored st
+      >>> map (\(DeviceStorage ds) -> ds.quantity)
+
+
+getMedicament :: State -> Int -> Maybe Medicament
+getMedicament st mid =
+  st.medicaments
+  # filter (\(Medicament m) -> m.id == mid)
+  # head
+
+getMedicamentStored :: State -> Int -> Maybe DeviceStorage
+getMedicamentStored st mid =
+  st.deviceStatus
+  # map (\(DeviceStatus s) -> s.storage)
+  # fromMaybe []
+  # filter (\(DeviceStorage ds) -> ds.medicamentId == mid)
+  # head
