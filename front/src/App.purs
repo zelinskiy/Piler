@@ -35,7 +35,7 @@ type State = { currentRoute :: Route.Route
              , homeState :: HomePage.State }
 
 data Event
-  = InitEvent
+  = Init
   | LoginPageEvent LoginPage.Event
   | HomePageEvent HomePage.Event
   | Navigate Route.Route
@@ -54,7 +54,7 @@ foldp :: forall fx. Event
       -> State
       -> EffModel State Event (Effects fx)
 
-foldp InitEvent st = noEffects st
+foldp Init st = noEffects st
 
 foldp (Navigate route) st =
   { state: st { currentRoute = route }
@@ -78,7 +78,7 @@ foldp (LoginPageEvent ev) st = res
               { currentRoute = Route.Home
               , homeState = res0.state.homeState { jwt = jwt }}
         , effects: res0.effects <>
-          [pure $ Just $ HomePageEvent $ HomePage.InitEvent] }
+          [pure $ Just $ HomePageEvent $ HomePage.Init] }
       _ -> res0
         
   

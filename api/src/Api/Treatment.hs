@@ -70,11 +70,12 @@ server =
         
     myFullTreatmentPlans = do
       plans <- myTreatmentPlans
-      rows <- map entityVal <$> myTreatmentPlanRows
-      let filt p r = treatmentPlanRowTreatmentPlanId r
-                             == entityKey p
+      rows <- myTreatmentPlanRows
+      let filt p r =
+            treatmentPlanRowTreatmentPlanId (entityVal r)
+            == entityKey p
       return $ map (\p -> FullTreatmentPlan
-            { treatmentPlan = entityVal p
+            { treatmentPlan = p
             , treatmentPlanRows = filter (filt p) rows })
         plans
         

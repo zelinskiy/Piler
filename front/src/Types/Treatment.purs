@@ -25,7 +25,7 @@ newtype TreatmentPlanRow = TreatmentPlanRow
                            , at :: String
                            , quantity :: Int
                            , medicamentId :: Int
-                           , treatmentplanId :: Int} 
+                           , treatmentPlanId :: Int} 
 
 derive instance genericTreatmentPlanRow :: Generic TreatmentPlanRow
 

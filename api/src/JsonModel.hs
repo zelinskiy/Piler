@@ -4,6 +4,7 @@ module JsonModel where
 
 import GHC.Generics (Generic)
 import Data.Aeson (FromJSON, ToJSON)
+import Database.Persist.Sqlite
 
 import Model
 
@@ -25,8 +26,8 @@ instance ToJSON RegisterData
 instance FromJSON RegisterData
 
 data DeviceStatus = DeviceStatus
-                  { device :: Device
-                  , storage :: [DeviceStorage] }
+                  { device :: Entity Device
+                  , storage :: [Entity DeviceStorage] }
                   deriving (Eq, Show, Generic)
 
 instance ToJSON DeviceStatus
@@ -34,8 +35,8 @@ instance FromJSON DeviceStatus
 
 data FullTreatmentPlan
   = FullTreatmentPlan
-    { treatmentPlan :: TreatmentPlan
-    , treatmentPlanRows :: [TreatmentPlanRow]
+    { treatmentPlan :: Entity TreatmentPlan
+    , treatmentPlanRows :: [Entity TreatmentPlanRow]
     } deriving (Eq, Show, Generic)
 
 instance ToJSON FullTreatmentPlan

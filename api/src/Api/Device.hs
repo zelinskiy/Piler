@@ -65,8 +65,8 @@ server =
       s <- db $
         selectList [DeviceStorageDeviceId ==. entityKey d] []
       return DeviceStatus
-        { device = entityVal d
-        , storage = map entityVal s }
+        { device = d
+        , storage = s }
         
     storedOf mid = do
       did <- entityKey <$> myDevice

@@ -13,10 +13,9 @@ import Data.String(joinWith)
 import Data.Foldable(for_)
 import Data.Either(Either(..), either)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Control.Monad.Aff (attempt, delay)
+import Control.Monad.Aff (delay)
 import Data.Time.Duration (Milliseconds(Milliseconds))
 
-import Data.Argonaut(decodeJson)
 import DOM (DOM)
 import Pux (EffModel, noEffects, onlyEffects)
 import Pux.DOM.Events (DOMEvent, onClick, targetValue)
@@ -33,7 +32,7 @@ import Data.HTTP.Method (Method (POST, GET))
 import Network.HTTP.Affjax (AJAX)
 import Control.Monad.Eff.Console (CONSOLE)
 
-import Utils.Request(getJsonAuth, JWT, request)
+import Utils.Request(JWT, request)
 import Utils.Other(eitherEvents)
 
 import Types.Device
@@ -51,8 +50,10 @@ type State = { deviceStatus :: Maybe DeviceStatus
              , error :: String }
 
 data Event
-  = InitEvent
+  = Init
+  | Tick
   | ShowDebug String
+  | HideDebug
     
   | SignOutRequest
   | SubscribeRequest
@@ -92,14 +93,20 @@ foldp :: forall fx. Event
 
 -- Utility events
 
-foldp InitEvent st = onlyEffects st
-  [delay (Milliseconds 2000.0) $> Just DeviceStatusRequest]
+foldp Init st = onlyEffects st
+  [ delay (Milliseconds 200.0) $> Just DeviceStatusRequest
+  , delay (Milliseconds 300.0) $> Just MedicamentsRequest
+  , delay (Milliseconds 400.0) $> Just TreatmentsRequest
+  , delay (Milliseconds 1000.0) $> Just Tick]
 
-foldp (ShowDebug m) st =
-  { state: st { error = m }
-  , effects:
-    [ delay (Milliseconds 6000.0) $> Just (ShowDebug "") ]
-  }
+foldp Tick st = onlyEffects st
+  [ pure $ Just DeviceStatusRequest
+  , pure $ Just MedicamentsRequest
+  , pure $ Just TreatmentsRequest
+  , delay (Milliseconds 1000.0) $> Just Tick]
+
+foldp (ShowDebug m) st = noEffects $ st { error = m }
+foldp HideDebug st = noEffects $ st { error = "" }
 
 -- Navigation events
 
