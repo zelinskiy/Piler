@@ -31,7 +31,7 @@ import Data.Lens.Getter((^.))
 import Config(serverRoot)
 
 import Utils.Request(request)
-import Utils.Other(eitherConsoleEvent, constUnit, mapi)
+import Utils.Other(eitherConsoleEvent, mapi)
 
 import Types.User
 import Types.Medicament
@@ -53,6 +53,8 @@ import HomePage.State
 import HomePage.Components.TreatmentComponent as Treatment
 import HomePage.Components.NavigationComponent as Navigation
 import HomePage.Components.DeviceComponent as DeviceComponent
+import HomePage.Components.ShoppingComponent as Shopping
+
 
 data Event
   = Init
@@ -62,12 +64,11 @@ data Event
   | NavigationEvent Navigation.Event
   | DeviceEvent DeviceComponent.Event
   | TreatmentEvent Treatment.Event
+  | ShoppingEvent Shopping.Event
 
   | MedicamentsRequest
   | MedicamentsResponse (Array Medicament)
 
-  
-  
 
 initEvents :: Array Event
 initEvents = [Tick tickEvents
@@ -76,7 +77,8 @@ initEvents = [Tick tickEvents
 tickEvents :: Array Event
 tickEvents = [ DeviceEvent DeviceComponent.DeviceStatusRequest
              , MedicamentsRequest
-             , TreatmentEvent Treatment.TreatmentsRequest ]
+             , TreatmentEvent Treatment.TreatmentsRequest
+             , ShoppingEvent Shopping.ShoppingListsRequest]
 
 foldp :: forall fx. Event
       -> State
@@ -114,6 +116,10 @@ foldp (TreatmentEvent ev) st =
   Treatment.foldp ev st
   # mapEffects TreatmentEvent
 
+foldp (ShoppingEvent ev) st = 
+  Shopping.foldp ev st
+  # mapEffects ShoppingEvent
+
   
 -- Medicaments
 
@@ -144,5 +150,6 @@ view s = do
       $ text "Close"
   mapEvent DeviceEvent $ DeviceComponent.view s
   mapEvent TreatmentEvent $ Treatment.view s
+  mapEvent ShoppingEvent $ Shopping.view s
 
 

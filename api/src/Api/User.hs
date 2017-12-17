@@ -18,7 +18,7 @@ type API =
       :> Get '[JSON] (Entity User)
     :<|> "unregister"
       :> Get '[JSON] ()
-    :<|> "updrade"
+    :<|> "upgrade"
       :> Capture "purpose" SecretKeyPurpose
       :> Capture "key" String
       :> Get '[JSON] ()

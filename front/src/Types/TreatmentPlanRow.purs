@@ -1,4 +1,5 @@
 module Types.TreatmentPlanRow where
+import Prelude
 
 import Data.Argonaut (class EncodeJson, class DecodeJson)
 import Data.Generic (class Generic)
@@ -27,6 +28,14 @@ instance decodeJsonTreatmentPlanRow
 instance encodeJsonTreatmentPlanRow
          :: EncodeJson TreatmentPlanRow where
   encodeJson = A.encodeJson
+
+defaultTreatmentPlanRow :: TreatmentPlanRow
+defaultTreatmentPlanRow =
+  TreatmentPlanRow { id: -1
+                   , at: "2017-01-01T00:00Z"
+                   , quantity: 0
+                   , medicamentId: -1
+                   , treatmentPlanId: -1 }
 
 derive instance newtypeTreatmentPlanRow :: Newtype TreatmentPlanRow _
 

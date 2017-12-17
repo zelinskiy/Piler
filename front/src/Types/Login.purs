@@ -14,11 +14,13 @@ import Data.Symbol (SProxy(..))
 
 newtype Login = Login
                 { email :: String
-                , pass :: String } 
+                , pass :: String
+                , ip :: String} 
 
 defaultLogin :: Login
 defaultLogin = Login { email: "user1@mail.com"
-                     , pass: "pass" }
+                     , pass: "pass"
+                     , ip: "127.0.0.1:8070" }
 
 derive instance eqLogin :: Eq Login
 
@@ -38,3 +40,6 @@ email = _Newtype <<< prop (SProxy :: SProxy "email")
 
 pass :: Lens' Login String
 pass = _Newtype <<< prop (SProxy :: SProxy "pass")
+
+ip :: Lens' Login String
+ip = _Newtype <<< prop (SProxy :: SProxy "ip")

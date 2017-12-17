@@ -4,11 +4,12 @@ module LoginPage( State(..)
                 , foldp
                 , view
                 , init
+                , Mode
                 ) where
 
 import Prelude
 
-import Data.Either(Either(..))
+import Data.Either(Either(..), either)
 import Data.Maybe (Maybe(..))
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Aff (attempt)
@@ -16,7 +17,7 @@ import Control.Monad.Aff (attempt)
 import Data.Argonaut (encodeJson)
 
 import DOM (DOM)
-import Pux (EffModel, noEffects)
+import Pux (EffModel, noEffects, onlyEffects)
 import Pux.DOM.Events (onClick)
 import Pux.DOM.HTML.Attributes (style)
 import Pux.DOM.HTML (HTML)
@@ -38,16 +39,27 @@ import Data.Symbol (SProxy(..))
 import Data.Lens.Setter((.~))
 
 import Config(serverRoot)
-import Types.Login (Login, defaultLogin, email, pass)
+import Types.Login (Login, defaultLogin, email, pass, ip)
 import Utils.Request(postJson, JWT)
 import Utils.Other(trimAny)
 
+-----------
+-- STATE --
+-----------
+
+data Mode = LoginMode | RegisterMode 
+derive instance eqMode :: Eq Mode
+
 type State = { login :: Login
+             , mode :: Mode
              , jwt :: Maybe JWT
              , error :: String }
 
 login :: Lens' State Login
 login = prop (SProxy :: SProxy "login")
+
+mode :: Lens' State Mode
+mode = prop (SProxy :: SProxy "mode")
 
 jwt :: Lens' State (Maybe JWT)
 jwt = prop (SProxy :: SProxy "jwt")
@@ -58,7 +70,10 @@ error = prop (SProxy :: SProxy "error")
 data Event
   = SignInRequest
   | SignInResult (Either String JWT)
+  | SignUpRequest
+  | SignUpResult (Maybe String)
   | ReplaceLogin Login
+  | SetMode Mode
 
 
 type Effects fx =
@@ -68,8 +83,13 @@ type Effects fx =
 
 init :: State
 init = { login: defaultLogin
+       , mode: LoginMode
        , jwt: Nothing
        , error: "" }
+
+------------
+-- UPDATE --
+------------
 
 foldp :: forall fx. Event
       -> State
@@ -87,9 +107,8 @@ foldp (SignInResult (Right j)) st =
     [ liftEff $ Console.log j *> pure Nothing ]
   }
   
-foldp SignInRequest st =  
-  { state: st
-  , effects: [ do
+foldp SignInRequest st = onlyEffects st
+  [ do
       let path = serverRoot <> "public/jwt/login/"
       res <- attempt $ postJson path (encodeJson st.login)
       let ret = case res of
@@ -99,21 +118,63 @@ foldp SignInRequest st =
                        else Left $ "[" <> show r.status <> "] "
                             <> r.response
       pure $ Just $ SignInResult ret
-    ]
-  }
+  ]
+
+foldp (SetMode m) st = noEffects $ st { mode = m }
+
+foldp (SignInResult (Left err)) st =
+  { state: st # error .~ err
+  , effects: [ liftEff $ Console.error err *> pure Nothing ] }
+  
+foldp (SignUpResult Nothing) st = onlyEffects st
+  [ liftEff (Console.log "Registered") $> Just SignInRequest ]
+
+foldp (SignUpResult (Just e)) st =
+  noEffects $ st { error = e }
+
+foldp SignUpRequest st = onlyEffects st
+  [ let path = serverRoot <> "public/user/register/"
+    in attempt (postJson path (encodeJson st.login))
+       >>= either (Just <<< show) (const Nothing)
+       >>> SignUpResult
+       >>> Just
+       >>> pure
+  ]
+
+----------
+-- VIEW --
+----------
 
 view :: State -> HTML Event
 view { login: l
-     , error: e } = do
+     , error: e
+     , mode: mode } = do
   p ! style do
     color green
     $ text "Welcome to The Piler!"
   p ! style (color red) $ text e
 
   let fields = email .| flip (*>) br
-               <> field (pass <<< asPassword)
-  form l fields ReplaceLogin
-  button 
-    ! type' "button" 
-    #! onClick (const SignInRequest) $ text "Sign In"
+               <> (pass <<< asPassword) .| flip (*>) br
+      fields' = if mode == RegisterMode
+                then fields <> (ip .| flip (*>) br)
+                else fields
+  form l fields' ReplaceLogin
+
+  case mode of
+    LoginMode -> do
+      button 
+        ! type' "button" 
+        #! onClick (const SignInRequest) $ text "Sign In"
+      button 
+        ! type' "button" 
+        #! onClick (const (SetMode RegisterMode)) $ text "Register"
+    RegisterMode -> do
+      button 
+        ! type' "button" 
+        #! onClick (const SignUpRequest) $ text "Sign Up"
+      button 
+        ! type' "button" 
+        #! onClick (const (SetMode LoginMode)) $ text "Return"
+    
   

@@ -77,7 +77,8 @@ foldp (LoginPageEvent ev) st = res
       LoginPage.SignInResult (Right jwt) ->
         { state: res0.state
               { currentRoute = Route.Home
-              , homeState = res0.state.homeState { jwt = jwt }}
+              , homeState = res0.state.homeState { jwt = jwt }
+              , loginState = LoginPage.init }
         , effects: res0.effects <>
           [pure $ Just $ HomePageEvent $ HomePage.Init] }
       _ -> res0

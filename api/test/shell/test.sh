@@ -12,6 +12,8 @@ sqlite3 sqlite.db  'INSERT INTO user VALUES ("user1@mail.com", "pass", "normal",
 
 find ./ -name '*.hs' -not -path './.stack-work/*' -not -path './test/*' | xargs wc -l
 
+find ./ -name '*.purs' -not -path './bower_components/*' -not -path './node_modules/**' | xargs wc -l
+
 sqlite3 sqlite.db "DELETE FROM user WHERE email = 'test@mail.com'; DELETE FROM device WHERE ip = '127.0.0.1'"
 
 #Old authentication

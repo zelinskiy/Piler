@@ -10,6 +10,11 @@ import Data.Argonaut (Json, class DecodeJson, decodeJson)
 import Network.HTTP.Affjax (Affjax, URL, affjax, defaultRequest)
 import Network.HTTP.RequestHeader(RequestHeader(..))
 import Network.HTTP.Affjax (AJAX)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Console (errorShow) as Console
+import Data.Time.Duration (Milliseconds(Milliseconds))
+import Network.HTTP.Affjax.Response(class Respondable)
 
 type JWT = String
 
@@ -50,3 +55,21 @@ request jwt method path j =
      pure <<< either (Left <<< show) (decodeJson <<< _.response) 
 
     
+request' :: forall e fx.
+            JWT
+         -> Method
+         -> URL
+         -> Maybe Json
+         -> Aff (ajax :: AJAX
+                , console :: CONSOLE | fx) Unit
+request' jwt method path j = do
+  let bearer = "Bearer " <> jwt
+      req = defaultRequest
+        { method = Left method
+        , url = path
+        , headers = [RequestHeader "Authorization" bearer]
+        , content = j }
+  res <- attempt $ affjax req
+  case res of
+    Left e -> liftEff $ Console.errorShow e
+    Right { response: _ :: Unit } -> pure unit

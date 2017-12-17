@@ -17,7 +17,7 @@ type API =
     :<|> "keys"
       :> "generate"
       :> Capture "purpose" SecretKeyPurpose
-      :> Get '[JSON] SecretKey
+      :> Get '[JSON] String
 
 
 server :: PrivateServer API
@@ -37,4 +37,4 @@ server = seizeTheMeans
       let k = SecretKey { secretKeyValue = key
                         , secretKeyPurpose = purpose }
       db $ insert k
-      return k
+      return key

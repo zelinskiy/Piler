@@ -1,8 +1,9 @@
 module HomePage.State where
 
 import Prelude
+import Data.Tuple
 import Data.Function((#))
-import Data.Maybe(Maybe(Nothing), fromMaybe)
+import Data.Maybe(Maybe(Just, Nothing), fromMaybe)
 import Data.Array(head, filter)
 
 import Data.Lens (Lens')
@@ -12,26 +13,31 @@ import Data.Symbol (SProxy(..))
 import Utils.Request(JWT)
 import Types.DeviceStatus
 import Types.DeviceStorage
+import Types.TreatmentPlanRow
 import Types.FullTreatmentPlan
 import Types.Medicament
 import Types.User
 
 type State = { deviceStatus :: Maybe DeviceStatus
              , treatment :: Array FullTreatmentPlan
+             , newTreatmentRow :: TreatmentPlanRow
              , medicaments :: Array Medicament
+             , newListName :: String
              , me :: User
              , jwt :: JWT
-             , prompting :: Boolean
+             , prompt :: Tuple Boolean String
              , error :: String
              , active :: Boolean }
 
 init :: JWT -> State
 init jwt = { deviceStatus: Nothing
            , treatment: []
+           , newTreatmentRow: defaultTreatmentPlanRow
            , medicaments : []
+           , newListName: "My Shopping List"
            , me: defaultUser
            , jwt: jwt
-           , prompting: false
+           , prompt: Tuple false "Contact admin for secret code please"
            , error: ""
            , active: false}
 
@@ -43,6 +49,9 @@ deviceStatus = prop (SProxy :: SProxy "deviceStatus")
 treatment :: Lens' State (Array FullTreatmentPlan)
 treatment = prop (SProxy :: SProxy "treatment")
 
+newTreatmentRow :: Lens' State TreatmentPlanRow
+newTreatmentRow = prop (SProxy :: SProxy "newTreatmentRow")
+
 medicaments :: Lens' State (Array Medicament)
 medicaments = prop (SProxy :: SProxy "medicaments")
 
@@ -52,8 +61,8 @@ me = prop (SProxy :: SProxy "me")
 jwt :: Lens' State JWT
 jwt = prop (SProxy :: SProxy "jwt")
 
-prompting :: Lens' State Boolean
-prompting = prop (SProxy :: SProxy "prompting")
+prompt :: Lens' State (Tuple Boolean String)
+prompt = prop (SProxy :: SProxy "prompt")
 
 error :: Lens' State String
 error = prop (SProxy :: SProxy "error")

@@ -28,11 +28,12 @@ run pool =  do
 go :: (MonadIO m, MonadLogger m)
    => ConnectionPool -> m ()
 go pool = do
-  let delay = 30
+  let delay = 10
       exPool p = liftIO . flip runSqlPersistMPool p  
       sleep = liftIO $ threadDelay (fromInteger delay*10^6)
       
   now <- liftIO getCurrentTime
+  logInfoN (show now)
   pending <- exPool pool $ selectList
     [TreatmentPlanRowAt <=. now] []
   

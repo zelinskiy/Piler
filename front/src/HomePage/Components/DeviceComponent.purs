@@ -41,6 +41,8 @@ data Event
   = DeviceStatusRequest
   | DeviceStatusResponse DeviceStatus
 
+
+
 foldp :: forall fx. Event
       -> State
       -> EffModel State Event (Effects fx)
@@ -73,9 +75,11 @@ view st@{ deviceStatus: Just (DeviceStatus s) }  = do
       where s = span $ text (show q)
     renderMedicament m =
       getMedicament st m
-      # map (\(Medicament m) -> m.name)
+      # map (\(Medicament m) -> m)
+      # map (\m -> m.name <> " [" <> show m.id <> "]")
       # fromMaybe "Unknown"
       # span <<< text
+      
 
 view { deviceStatus: Nothing } = do
   h3 $ text "Device not loaded"

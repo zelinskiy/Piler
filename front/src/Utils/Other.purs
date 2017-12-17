@@ -11,6 +11,8 @@ import Control.Monad.Eff(Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Console (errorShow) as Console
+import Data.Time.Duration (Milliseconds(Milliseconds))
+import Control.Monad.Aff (delay)
                       
 trimAny :: String -> String
 trimAny = drop 1 <<< (\s -> take (length s - 1) s)
@@ -25,7 +27,7 @@ eitherConsoleEvent :: forall a b s fx.Show s =>
 eitherConsoleEvent _ (Left e) =
   liftEff (Console.errorShow e) $> Nothing
 eitherConsoleEvent e (Right r) =
-  pure $ Just $ e r
+  pure $ Just (e r)
 
 mapi :: forall a b. (Int -> a -> b) -> Array a -> Array b
 mapi = helper 0
@@ -36,5 +38,3 @@ mapi = helper 0
              f i x `cons` helper (i+1) f xs
            Nothing -> []
 
-constUnit :: forall b. b -> Unit -> b
-constUnit x _ = x

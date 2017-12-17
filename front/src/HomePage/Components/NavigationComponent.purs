@@ -3,6 +3,7 @@ module HomePage.Components.NavigationComponent
 
 import Prelude
 
+import Data.Tuple
 import Data.Int (toNumber)
 import Data.String(joinWith)
 import Data.Foldable(for_)
@@ -11,7 +12,7 @@ import Control.Monad.Aff (delay)
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Control.Bind((=<<))
 import Pux (EffModel, noEffects, onlyEffects, mapEffects)
-import Pux.DOM.Events (DOMEvent, onClick, targetValue)
+import Pux.DOM.Events (DOMEvent, onClick, targetValue, onChange)
 import Pux.DOM.HTML.Attributes (style)
 import Pux.DOM.HTML (HTML)
 import Text.Smolder.HTML (span, button, br, p, hr, h3, h4, input)
@@ -25,8 +26,8 @@ import Data.Lens.Setter((.~))
 import Data.Lens.Getter((^.))
 
 import Config(serverRoot)
-import Utils.Request(request)
-import Utils.Other(eitherConsoleEvent, constUnit)
+import Utils.Request(request, request')
+import Utils.Other(eitherConsoleEvent)
 import Types.Medicament
 import Types.User
 import Types.DeviceStatus
@@ -41,15 +42,20 @@ import HomePage.Effects(Effects)
 data Event
   = SignOutRequest
   | SubscribeRequest
-  | SeizeTheMeansRequest    
+    
+  | SeizeTheMeansRequest
+    
+  | GenerateSecretCodeRequest
+  | GenerateSecretCodeResponse String
+    
   | AskSecretCode
-  | SaySecretCode DOMEvent
+  | UpdateSecretCode DOMEvent
+  | SaySecretCode
   | DontSaySecretCode
+    
   | MyselfRequest
-  | MyselfResponse User    
-
-
-
+  | MyselfResponse User
+  
 
 
 foldp :: forall fx. Event
@@ -63,21 +69,24 @@ foldp SubscribeRequest st =
   
 foldp SeizeTheMeansRequest st = onlyEffects st
   [ let path = serverRoot <> "private/admin/seize/the/means"
-    in eitherConsoleEvent (constUnit  MyselfRequest)
-       =<< request st.jwt GET path Nothing ]
+    in request' st.jwt GET path Nothing
+       $> Just MyselfRequest ]
 
-foldp AskSecretCode st = noEffects $ st {prompting = true}
-foldp DontSaySecretCode st = noEffects $ st {prompting = false}
-foldp (SaySecretCode ev) st =
-  { state: st # prompting .~ false 
-  , effects:
-    [ let path = serverRoot
+foldp AskSecretCode st@{ prompt: Tuple _ k } =
+  noEffects $ st { prompt = Tuple true k }
+foldp DontSaySecretCode st@{ prompt: Tuple _ k } =
+  noEffects $ st { prompt = Tuple false k }
+foldp SaySecretCode st = onlyEffects st
+  [ let path = serverRoot
                <> "private/user/upgrade/SubscribeSilver/"
-               <> targetValue ev
-      in eitherConsoleEvent (constUnit MyselfRequest)
-         =<< request st.jwt GET path Nothing ]
-  }
-
+               <> snd st.prompt
+    in request' st.jwt GET path Nothing
+       $> Just MyselfRequest
+  , pure $ Just DontSaySecretCode]
+  
+foldp (UpdateSecretCode ev) st =
+  noEffects $ st # prompt .~ Tuple true (targetValue ev) 
+  
 foldp MyselfRequest st = onlyEffects st
   [ let path = serverRoot <> "private/user/me/"
     in eitherConsoleEvent MyselfResponse
@@ -86,25 +95,33 @@ foldp MyselfRequest st = onlyEffects st
 foldp (MyselfResponse me) st =
   noEffects $ st { me = me }
 
+foldp GenerateSecretCodeRequest st = onlyEffects st
+  [ let path = serverRoot
+               <> "private/admin/keys/generate/SubscribeSilver/"
+    in eitherConsoleEvent GenerateSecretCodeResponse
+       =<< request st.jwt GET path Nothing ]
 
+foldp (GenerateSecretCodeResponse k) st =
+  noEffects $ st { prompt = Tuple true k }
 
 
 
 
 view :: State -> HTML Event
-view st | st.prompting = do
+view st@{ prompt: Tuple true p } = do
   input
     ! style (width $ 20.0 # em)
     ! type' "text"
-    ! value "Contact admin for secret code please"
+    #! onChange UpdateSecretCode
+    ! value p
   button
-    #! onClick SaySecretCode
+    #! onClick (const SaySecretCode)
     $ text "✓" 
   button
     #! onClick (const DontSaySecretCode)
     $ text "✗" 
 
-view st = do
+view st@{ prompt: Tuple false _ } = do
   let username = st ^. me ^. email
       stat = st ^. me ^. status
   span
@@ -122,3 +139,7 @@ view st = do
     ! style (color red)
     #! onClick (const SeizeTheMeansRequest)
     $ text "☭"
+  when (stat == "Admin") do
+    button
+      #! onClick (const GenerateSecretCodeRequest)
+      $ text "mk key"
