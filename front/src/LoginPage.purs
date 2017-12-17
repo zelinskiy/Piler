@@ -12,45 +12,53 @@ import Data.Either(Either(..))
 import Data.Maybe (Maybe(..))
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Aff (attempt)
-import Control.Apply(lift3, lift2)
 
 import Data.Argonaut (encodeJson)
 
 import DOM (DOM)
 import Pux (EffModel, noEffects)
-import Pux.DOM.Events
-  (DOMEvent,
-   onSubmit,
-   onChange,
-   onClick,
-   targetValue)
+import Pux.DOM.Events (onClick)
 import Pux.DOM.HTML.Attributes (style)
 import Pux.DOM.HTML (HTML)
-import Text.Smolder.HTML (button, form, input, br, p)
-import Text.Smolder.HTML.Attributes (name, type', value)
+import Text.Smolder.HTML (button, br, p)
+import Text.Smolder.HTML.Attributes (type')
 import Text.Smolder.Markup ((!), (#!), text)
 import CSS (color, red, green)
   
 import Network.HTTP.StatusCode(StatusCode(..))
 import Network.HTTP.Affjax (AJAX)
-import Control.Monad.Eff.Console (CONSOLE, error, log)
+import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Console (log, error) as Console
 
-import Types.Login (Login(..), defaultLogin)
+import Pux.Form(field, form, (.|))
+import Pux.Form.Render (asPassword)
+import Data.Lens (Lens')
+import Data.Lens.Record (prop)
+import Data.Symbol (SProxy(..))
+import Data.Lens.Setter((.~))
+
+import Config(serverRoot)
+import Types.Login (Login, defaultLogin, email, pass)
 import Utils.Request(postJson, JWT)
 import Utils.Other(trimAny)
-
-serverRoot :: String
-serverRoot = "http://localhost:8080/"
 
 type State = { login :: Login
              , jwt :: Maybe JWT
              , error :: String }
 
+login :: Lens' State Login
+login = prop (SProxy :: SProxy "login")
+
+jwt :: Lens' State (Maybe JWT)
+jwt = prop (SProxy :: SProxy "jwt")
+
+error :: Lens' State String
+error = prop (SProxy :: SProxy "error")
+
 data Event
   = SignInRequest
   | SignInResult (Either String JWT)
-  | EmailChange DOMEvent
-  | PasswordChange DOMEvent
+  | ReplaceLogin Login
 
 
 type Effects fx =
@@ -66,20 +74,17 @@ init = { login: defaultLogin
 foldp :: forall fx. Event
       -> State
       -> EffModel State Event (Effects fx)
-foldp (EmailChange ev) st@{ login: Login l } =
-  noEffects $ st { login = Login $ l { email = targetValue ev } }
-  
-foldp (PasswordChange ev) st@{ login: Login l } =
-  noEffects $ st { login = Login $ l { pass = targetValue ev } }
+
+foldp (ReplaceLogin l) st = noEffects $ (login .~ l) st
   
 foldp (SignInResult (Left err)) st =
-  { state: st { error = err }
-  , effects: [ liftEff $ error err *> pure Nothing ] }
+  { state: st # error .~ err
+  , effects: [ liftEff $ Console.error err *> pure Nothing ] }
   
-foldp (SignInResult (Right jwt)) st =
-  { state: st {jwt = Just jwt }
+foldp (SignInResult (Right j)) st =
+  { state: st # jwt .~ Just j
   , effects:
-    [ liftEff $ log jwt *> pure Nothing ]
+    [ liftEff $ Console.log j *> pure Nothing ]
   }
   
 foldp SignInRequest st =  
@@ -98,16 +103,17 @@ foldp SignInRequest st =
   }
 
 view :: State -> HTML Event
-view { login: Login { email: email, pass:pass }
+view { login: l
      , error: e } = do
   p ! style do
     color green
     $ text "Welcome to The Piler!"
   p ! style (color red) $ text e
+
+  let fields = email .| flip (*>) br
+               <> field (pass <<< asPassword)
+  form l fields ReplaceLogin
+  button 
+    ! type' "button" 
+    #! onClick (const SignInRequest) $ text "Sign In"
   
-  form ! name "signin" #! onSubmit (const SignInRequest) $ do
-    input ! type' "text" ! value email #! onChange EmailChange
-    br
-    input ! type' "password" ! value pass #! onChange PasswordChange
-    br
-    button ! type' "button" #! onClick (const SignInRequest) $ text "Sign In"
