@@ -32,22 +32,23 @@ import Data.HTTP.Method (Method (POST, GET))
 import Network.HTTP.Affjax (AJAX)
 import Control.Monad.Eff.Console (CONSOLE)
 
+import Pux.Form(field, form, (.|))
+import Pux.Form.Render (asPassword)
+import Data.Lens (Lens')
+import Data.Lens.Record (prop)
+import Data.Symbol (SProxy(..))
+import Data.Lens.Setter((.~))
+
+import Config(serverRoot)
+
 import Utils.Request(JWT, request)
 import Utils.Other(eitherEvents)
 
 import Types.Device
 import Types.Medicament
 import Types.Treatment
+import Types.User
 
-serverRoot :: String
-serverRoot = "http://localhost:8080/"
-
-type State = { deviceStatus :: Maybe DeviceStatus
-             , treatment :: Array FullTreatmentPlan
-             , medicaments :: Array Medicament
-             , jwt :: JWT
-             , prompting :: Boolean
-             , error :: String }
 
 data Event
   = Init
@@ -71,6 +72,9 @@ data Event
 
   | MedicamentsRequest
   | MedicamentsResponse (Array Medicament)
+
+  | MyselfRequest
+  | MyselfResponse User
   
 
 type Effects fx =
@@ -78,14 +82,44 @@ type Effects fx =
   , console :: CONSOLE
   , dom :: DOM | fx)
 
+type State = { deviceStatus :: Maybe DeviceStatus
+             , treatment :: Array FullTreatmentPlan
+             , medicaments :: Array Medicament
+             , me :: User
+             , jwt :: JWT
+             , prompting :: Boolean
+             , error :: String }
+
 init :: JWT -> State
 init jwt = { deviceStatus: Nothing
            , treatment: []
            , medicaments : []
+           , me: defaultUser
            , jwt: jwt
            , prompting: false
            , error: "" }
 
+deviceStatus :: Lens' State (Maybe DeviceStatus)
+deviceStatus = prop (SProxy :: SProxy "deviceStatus")
+
+treatment :: Lens' State (Array FullTreatmentPlan)
+treatment = prop (SProxy :: SProxy "treatment")
+
+medicaments :: Lens' State (Array Medicament)
+medicaments = prop (SProxy :: SProxy "medicaments")
+
+jwt :: Lens' State JWT
+jwt = prop (SProxy :: SProxy "jwt")
+
+prompting :: Lens' State Boolean
+prompting = prop (SProxy :: SProxy "prompting")
+
+error :: Lens' State String
+error = prop (SProxy :: SProxy "error")
+
+----------------------------------------------
+--             UPDATE                       --
+----------------------------------------------
 
 foldp :: forall fx. Event
       -> State
@@ -105,8 +139,8 @@ foldp Tick st = onlyEffects st
   , pure $ Just TreatmentsRequest
   , delay (Milliseconds 1000.0) $> Just Tick]
 
-foldp (ShowDebug m) st = noEffects $ st { error = m }
-foldp HideDebug st = noEffects $ st { error = "" }
+foldp (ShowDebug m) st = noEffects $ st # error .~ m
+foldp HideDebug st = noEffects $ st # error .~ ""
 
 -- Navigation events
 
@@ -115,63 +149,79 @@ foldp SignOutRequest _ = noEffects (init "")
 foldp SubscribeRequest st =
   onlyEffects st [ pure $ Just AskSecretCode ]
   
-foldp SeizeTheMeansRequest st@{jwt: jwt} = onlyEffects st
+foldp SeizeTheMeansRequest st = onlyEffects st
   [ let path = serverRoot <> "private/admin/seize/the/means"
     in eitherEvents ShowDebug ShowDebug
-       <$> request jwt GET path Nothing ]
+       <$> request st.jwt GET path Nothing ]
 
-foldp AskSecretCode s = noEffects $ s {prompting = true}
-foldp DontSaySecretCode s = noEffects $ s {prompting = false}
-foldp (SaySecretCode ev) st@{jwt: jwt} =
-  { state: st { prompting = false }
+foldp AskSecretCode st = noEffects $ st {prompting = true}
+foldp DontSaySecretCode st = noEffects $ st {prompting = false}
+foldp (SaySecretCode ev) st =
+  { state: st # prompting .~ false 
   , effects:
     [ let path = serverRoot
                <> "private/user/upgrade/SubscribeSilver/"
                <> targetValue ev
       in eitherEvents ShowDebug ShowDebug
-         <$> request jwt GET path Nothing ]
+         <$> request st.jwt GET path Nothing ]
   }
   
 -- Device
 
-foldp DeviceStatusRequest s@{ jwt: jwt } = onlyEffects s
+foldp DeviceStatusRequest st = onlyEffects st
   [ let path = serverRoot <> "private/device/my/status/"
     in eitherEvents ShowDebug DeviceStatusResponse
-       <$> request jwt GET path Nothing ]
+       <$> request st.jwt GET path Nothing ]
 
-foldp (DeviceStatusResponse ds) s =
-  noEffects $ s { deviceStatus = Just ds }
+foldp (DeviceStatusResponse ds) st =
+  noEffects $ st # deviceStatus .~ Just ds 
 
 -- Treatment
 
-foldp TreatmentsRequest st@{jwt: jwt} = onlyEffects st
+foldp TreatmentsRequest st = onlyEffects st
   [ let path = serverRoot <> "private/treatment/my/full/"
     in eitherEvents ShowDebug TreatmentsResponse
-       <$> request jwt GET path Nothing ]
+       <$> request st.jwt GET path Nothing ]
 
 foldp (TreatmentsResponse tps) st =
-  noEffects $ st { treatment = tps }
+  noEffects $ st # treatment .~ tps
 
 -- Medicaments
 
-foldp MedicamentsRequest st@{jwt: jwt} = onlyEffects st
+foldp MedicamentsRequest st = onlyEffects st
   [ let path = serverRoot <> "private/medicament/all/"
     in eitherEvents ShowDebug MedicamentsResponse
-       <$> request jwt GET path Nothing ]
+       <$> request st.jwt GET path Nothing ]
 
 foldp (MedicamentsResponse meds) st =
-  noEffects $ st { medicaments = meds }
+  noEffects $ st # medicaments .~ meds
 
+-- Myself
 
+foldp MyselfRequest st = onlyEffects st
+  [ let path = serverRoot <> "private/user/me/"
+    in eitherEvents ShowDebug MyselfResponse
+       <$> request st.jwt GET path Nothing ]
+
+foldp (MyselfResponse me) st =
+  noEffects $ st { me = me }
+
+----------------------------------------------
+--             VIEW                         --
+----------------------------------------------
 
   
 view :: State -> HTML Event
 view s@{ error: e } = do
   navigationView s
   hr
-  p
-    ! style (color red)
-    $ text e
+  when (e /= "") do
+    p
+      ! style (color red)
+      $ text e
+    button
+      #! onClick (const HideDebug)
+      $ text "Close"
   deviceView s
   treatmentView s
   button
@@ -239,7 +289,7 @@ deviceView { deviceStatus: Nothing } = do
     #! onClick (const DeviceStatusRequest)
     $ text "reload"
   
-
+-- TODO: Rewrite this with lenses
 treatmentView :: State -> HTML Event
 treatmentView { treatment: [] } =
   h3 $ text "No treatment plans"
