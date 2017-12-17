@@ -8,10 +8,10 @@ module HomePage ( State(..)
 
 import Prelude
 
+import Data.Int (toNumber)
 import Data.Array(head, filter)
 import Data.String(joinWith)
 import Data.Foldable(for_)
-import Data.Either(Either(..), either)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Control.Monad.Aff (delay)
 import Data.Time.Duration (Milliseconds(Milliseconds))
@@ -32,27 +32,34 @@ import Data.HTTP.Method (Method (POST, GET))
 import Network.HTTP.Affjax (AJAX)
 import Control.Monad.Eff.Console (CONSOLE)
 
-import Pux.Form(field, form, (.|))
-import Pux.Form.Render (asPassword)
 import Data.Lens (Lens')
 import Data.Lens.Record (prop)
 import Data.Symbol (SProxy(..))
 import Data.Lens.Setter((.~))
+import Data.Lens.Getter((^.))
 
 import Config(serverRoot)
 
 import Utils.Request(JWT, request)
-import Utils.Other(eitherEvents)
+import Utils.Other(eitherEvents, mapi)
+
+import Types.User
+import Types.Medicament
 
 import Types.Device
-import Types.Medicament
-import Types.Treatment
-import Types.User
+import Types.DeviceStorage
+import Types.DeviceStatus
+
+import Types.TreatmentPlan
+import Types.TreatmentPlanRow
+import Types.FullTreatmentPlan
+
+
 
 
 data Event
   = Init
-  | Tick
+  | Tick (Array Event)
   | ShowDebug String
   | HideDebug
     
@@ -108,6 +115,9 @@ treatment = prop (SProxy :: SProxy "treatment")
 medicaments :: Lens' State (Array Medicament)
 medicaments = prop (SProxy :: SProxy "medicaments")
 
+me :: Lens' State User
+me = prop (SProxy :: SProxy "me")
+
 jwt :: Lens' State JWT
 jwt = prop (SProxy :: SProxy "jwt")
 
@@ -121,23 +131,31 @@ error = prop (SProxy :: SProxy "error")
 --             UPDATE                       --
 ----------------------------------------------
 
+initEvents :: Array Event
+initEvents = [Tick tickEvents, MyselfRequest]
+
+tickEvents :: Array Event
+tickEvents = [ DeviceStatusRequest
+             , MedicamentsRequest
+             , TreatmentsRequest ]
+
 foldp :: forall fx. Event
       -> State
       -> EffModel State Event (Effects fx)
 
 -- Utility events
 
-foldp Init st = onlyEffects st
-  [ delay (Milliseconds 200.0) $> Just DeviceStatusRequest
-  , delay (Milliseconds 300.0) $> Just MedicamentsRequest
-  , delay (Milliseconds 400.0) $> Just TreatmentsRequest
-  , delay (Milliseconds 1000.0) $> Just Tick]
+foldp Init st =
+  { state: init st.jwt
+  , effects: mapi mapping initEvents }
+  where
+    mapping i e =
+      delay (Milliseconds (toNumber i * 100.0)) $> Just e
 
-foldp Tick st = onlyEffects st
-  [ pure $ Just DeviceStatusRequest
-  , pure $ Just MedicamentsRequest
-  , pure $ Just TreatmentsRequest
-  , delay (Milliseconds 1000.0) $> Just Tick]
+foldp (Tick events) st =
+  onlyEffects st 
+    $ map (pure <<< Just) events
+    <> [delay (Milliseconds 1000.0) $> Just (Tick events)]
 
 foldp (ShowDebug m) st = noEffects $ st # error .~ m
 foldp HideDebug st = noEffects $ st # error .~ ""
@@ -242,12 +260,12 @@ navigationView st | st.prompting = do
     #! onClick (const DontSaySecretCode)
     $ text "✗" 
   
-navigationView _ = do
+navigationView st = do
   span
     ! style do
         color green
         marginRight (10.0 # em)
-    $ text "You are logged in."
+    $ text ("Logged as " <> st ^. me ^. email)
   button
     #! onClick (const SignOutRequest)
     $ text "Log out"
@@ -273,15 +291,28 @@ medicamentsView s@{ medicaments: meds } = do
         , fromMaybe "" m.description ]
 
 deviceView :: State -> HTML Event
-deviceView { deviceStatus: Just (DeviceStatus s) }  = do
+deviceView st@{ deviceStatus: Just (DeviceStatus s) }  = do
   h3 $ text "Your device status:"
   p $ text $ "ip: " <> ip
   h4 $ text "Storage:"
   for_ s.storage renderStorage
   where
     ip = (\(Device d) -> d.ip) s.device
-    renderStorage (DeviceStorage { quantity: q, medicamentId: m }) =
-      p $ text $ show q <> " of " <> show m
+    renderStorage (DeviceStorage storage) = do
+      renderQuantity storage.quantity
+      span $ text " of "
+      renderMedicament storage.medicamentId
+      br
+    renderQuantity q =
+      if q <= 0
+      then s ! style (color red)
+      else s
+      where s = span $ text (show q)
+    renderMedicament m =
+      getMedicament st m
+      # map (\(Medicament m) -> m.name)
+      # fromMaybe "Unknown"
+      # span <<< text
 
 deviceView { deviceStatus: Nothing } = do
   h3 $ text "Device not loaded"
@@ -294,7 +325,7 @@ treatmentView :: State -> HTML Event
 treatmentView { treatment: [] } =
   h3 $ text "No treatment plans"
 treatmentView st@{ treatment: tps } = do
-  h3 $ text "Your treatment schedule:"
+  h3 $ text "Device:"
   for_ tps renderPlan
   where    
     renderPlan (FullTreatmentPlan p) = do
@@ -305,13 +336,13 @@ treatmentView st@{ treatment: tps } = do
     getPlanId (TreatmentPlan p) = p.id
     
     renderPlanRow (TreatmentPlanRow r) =
-      p $ text $ joinWith " "
-        [ r.at
-        , show r.quantity
-        , fromMaybe "" $ getMedicamentName r.medicamentId
-        , show $ howMuchStored r.medicamentId
-        ]
-
+      p $ text $        
+        "Take " <> show r.quantity <> " of "
+        <> fromMaybe "Unknown" (getMedicamentName r.medicamentId)
+        <> " at " <> r.at
+        <> " (Stored: " <> show (howMuchStored r.medicamentId) <> ")"
+         
+        
     getMedicamentName =
       getMedicament st
       >>> map (\(Medicament m) -> m.name)
@@ -319,8 +350,9 @@ treatmentView st@{ treatment: tps } = do
     howMuchStored =
       getMedicamentStored st
       >>> map (\(DeviceStorage ds) -> ds.quantity)
+      >>> fromMaybe 0
 
-
+-- TODO: Rewrite this with lenses
 getMedicament :: State -> Int -> Maybe Medicament
 getMedicament st mid =
   st.medicaments

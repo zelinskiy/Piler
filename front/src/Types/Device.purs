@@ -2,8 +2,14 @@ module Types.Device where
 
 import Data.Argonaut (class EncodeJson, class DecodeJson)
 import Data.Generic (class Generic)
-
 import Data.Argonaut.Generic.Aeson (encodeJson, decodeJson) as A
+
+import Data.Newtype (class Newtype)
+import Data.Lens (Lens')
+import Data.Lens.Record (prop)
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Symbol (SProxy(..))
+import Data.Function((<<<))
 
 --Device
 
@@ -18,33 +24,7 @@ instance decodeJsonDevice :: DecodeJson Device where
 instance encodeJsonDevice :: EncodeJson Device where
   encodeJson = A.encodeJson
 
--- DeviceStorage
+derive instance newtypeDevice :: Newtype Device _
 
--- also returns deviceId
-newtype DeviceStorage = DeviceStorage
-                        { quantity :: Int
-                        , medicamentId :: Int } 
-
-derive instance genericDeviceStorage :: Generic DeviceStorage
-
-instance decodeJsonDeviceStorage :: DecodeJson DeviceStorage where
-  decodeJson = A.decodeJson
-
-instance encodeJsonDeviceStorage :: EncodeJson DeviceStorage where
-  encodeJson = A.encodeJson
-
--- DeviceStatus
-
-newtype DeviceStatus = DeviceStatus
-                       { device :: Device
-                       , storage :: Array DeviceStorage } 
-
-derive instance genericDeviceStatus :: Generic DeviceStatus
-
-instance decodeJsonDeviceStatus :: DecodeJson DeviceStatus where
-  decodeJson = A.decodeJson
-
-instance encodeJsonDeviceStatus :: EncodeJson DeviceStatus where
-  encodeJson = A.encodeJson
-
-
+ip :: Lens' Device String
+ip = _Newtype <<< prop (SProxy :: SProxy "ip")
