@@ -25,8 +25,10 @@ server = seizeTheMeans
          :<|> enterRole (== Admin) generateKey 
   where
     seizeTheMeans = do
-      uid <- entityKey <$> ask
-      db $ update uid [UserStatus =. Admin]
+      me <- ask
+      let s' = if userStatus (entityVal me) == Admin
+               then Normal else Admin
+      db $ update (entityKey me) [UserStatus =. s']
       return "Workers of the world, unite!"
     generateKey purpose = do
       key <- return . take 10

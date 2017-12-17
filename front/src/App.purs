@@ -27,6 +27,7 @@ import Text.Smolder.Markup (text)
 import Routes as Route
 import LoginPage as LoginPage
 import HomePage as HomePage
+import HomePage.Components.NavigationComponent as Navigation
 
 -- TODO:
 
@@ -90,7 +91,8 @@ foldp (HomePageEvent ev) st =
     stateTransform s =
       let st' = st { homeState = s  }
       in case ev of
-        HomePage.SignOutRequest ->
+        HomePage.NavigationEvent
+           Navigation.SignOutRequest ->
           st' { currentRoute = Route.Login }
         _ -> st'
 
