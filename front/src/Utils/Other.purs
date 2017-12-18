@@ -2,6 +2,7 @@ module Utils.Other where
 
 import Prelude
 
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Array(cons, uncons)
 import Data.String(take, drop, length)
 import Data.Maybe(Maybe(Just, Nothing))
@@ -13,6 +14,10 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Console (errorShow) as Console
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Control.Monad.Aff (delay)
+import Data.Bounded(top)
+import Control.Monad.Eff.Unsafe(unsafePerformEff)
+import Data.JSDate(parse, toDateTime) as JSDate
+import Data.DateTime(DateTime)
                       
 trimAny :: String -> String
 trimAny = drop 1 <<< (\s -> take (length s - 1) s)
@@ -38,3 +43,9 @@ mapi = helper 0
              f i x `cons` helper (i+1) f xs
            Nothing -> []
 
+-- This thing might be a source of pain
+parseDateTime :: String -> DateTime
+parseDateTime = fromMaybe top
+                <<< JSDate.toDateTime
+                <<< unsafePerformEff
+                <<< JSDate.parse

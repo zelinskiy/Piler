@@ -32,7 +32,7 @@ instance encodeJsonTreatmentPlanRow
 defaultTreatmentPlanRow :: TreatmentPlanRow
 defaultTreatmentPlanRow =
   TreatmentPlanRow { id: -1
-                   , at: "2017-01-01T00:00Z"
+                   , at: "2018-01-01T00:00Z"
                    , quantity: 0
                    , medicamentId: -1
                    , treatmentPlanId: -1 }
