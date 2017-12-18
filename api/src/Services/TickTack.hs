@@ -33,7 +33,7 @@ go pool = do
       sleep = liftIO $ threadDelay (fromInteger delay*10^6)
       
   now <- liftIO getCurrentTime
-  logInfoN (show now)
+  logInfoN (T.pack $ show now)
   pending <- exPool pool $ selectList
     [TreatmentPlanRowAt <=. now] []
   
