@@ -33,9 +33,9 @@ defaultTreatmentPlanRow :: TreatmentPlanRow
 defaultTreatmentPlanRow =
   TreatmentPlanRow { id: -1
                    , at: "2018-01-01T00:00Z"
-                   , quantity: 0
-                   , medicamentId: -1
-                   , treatmentPlanId: -1 }
+                   , quantity: 1
+                   , medicamentId: 1
+                   , treatmentPlanId: 1 }
 
 derive instance newtypeTreatmentPlanRow :: Newtype TreatmentPlanRow _
 

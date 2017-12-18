@@ -24,7 +24,7 @@ import Data.HTTP.Method (Method (POST, GET))
 import Data.Lens.Setter((.~))
 
 import Config(serverRoot)
-import Utils.Request(request)
+import Utils.Request(request, request')
 import Utils.Other(eitherConsoleEvent)
 import Types.Medicament
 import Types.Device
@@ -40,19 +40,47 @@ import HomePage.Effects(Effects)
 data Event
   = DeviceStatusRequest
   | DeviceStatusResponse DeviceStatus
-
+  | RefillRequest Int Int
+  | PulloutRequest Int Int
+  | DispenceRequest Int Int
 
 
 foldp :: forall fx. Event
       -> State
       -> EffModel State Event (Effects fx)
+      
 foldp DeviceStatusRequest st = onlyEffects st
-  [ let path = serverRoot <> "private/device/my/status/"
+  [ let path = serverRoot
+               <> "private/device/my/status/"
     in eitherConsoleEvent DeviceStatusResponse
        =<< request st.jwt GET path Nothing ]
+  
 foldp (DeviceStatusResponse ds) st =
   noEffects $ st # deviceStatus .~ Just ds
+  
+foldp (RefillRequest mid q) st = onlyEffects st
+  [ let path = serverRoot
+               <> "private/device/my/refill/"
+               <> show mid <> "/"
+               <> show q <> "/"
+    in request' st.jwt GET path Nothing
+       $> Just DeviceStatusRequest ]
+  
+foldp (PulloutRequest mid q) st = onlyEffects st
+  [ let path = serverRoot
+               <> "private/device/my/pullout/"
+               <> show mid <> "/"
+               <> show q <> "/"
+    in request' st.jwt GET path Nothing
+       $> Just DeviceStatusRequest ]
 
+foldp (DispenceRequest mid q) st = onlyEffects st
+  [ let path = serverRoot
+               <> "private/device/my/dispence/"
+               <> show mid <> "/"
+               <> show q <> "/"
+    in request' st.jwt GET path Nothing
+       $> Just DeviceStatusRequest ]
 
 
 view :: State -> HTML Event
@@ -64,6 +92,18 @@ view st@{ deviceStatus: Just (DeviceStatus s) }  = do
   where
     ip = (\(Device d) -> d.ip) s.device
     renderStorage (DeviceStorage storage) = do
+      button
+        ! type' "button" 
+        #! onClick (const $ RefillRequest storage.medicamentId 1)
+        $ text "+"
+      button
+        ! type' "button" 
+        #! onClick (const $ PulloutRequest storage.medicamentId 1)
+        $ text "-"
+      button
+        ! type' "button" 
+        #! onClick (const $ DispenceRequest storage.medicamentId 1)
+        $ text "D"
       renderQuantity storage.quantity
       span $ text " of "
       renderMedicament storage.medicamentId

@@ -4,6 +4,7 @@ import Database.Persist.Sqlite
 import Servant
 import Data.Maybe
 import Control.Monad.Trans.Reader
+import Control.Monad
 
 import Model
 import JsonModel (FullTreatmentPlan(..))
@@ -79,11 +80,20 @@ server =
             , treatmentPlanRows = filter (filt p) rows })
         plans
         
-    addTreatmentPlan = do
-      did <- myDevice
-      db $ insert $ TreatmentPlan did
+    addTreatmentPlan =
+      myDevice >>= db . insert . TreatmentPlan
       
-    addTreatmentPlanRow = db . insert
+    addTreatmentPlanRow r = do
+      let mid = treatmentPlanRowMedicamentId r          
+      nex <- fmap isNothing $ db $ selectFirst
+        [DeviceStorageMedicamentId ==. mid] []
+      when nex $
+        myDevice
+        >>= db . insert . DeviceStorage 0 mid
+        >> return ()
+        
+      db $ insert r
+    
     
     deleteTreatmentPlan = db . delete
     
