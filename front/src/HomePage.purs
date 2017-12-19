@@ -14,6 +14,7 @@ import Control.Monad.Aff (delay)
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Control.Bind((=<<))
 import Pux (EffModel, noEffects, onlyEffects, mapEffects)
+import Pux.Form(field, form, (.|))
 import Pux.DOM.Events (DOMEvent, onClick, targetValue)
 import Pux.DOM.HTML.Attributes (style)
 import Pux.DOM.HTML (HTML, mapEvent)
@@ -24,13 +25,15 @@ import CSS (color, red, green)
 import CSS.Geometry(marginRight, width)
 import CSS.Size(em)
 import Data.HTTP.Method (Method (POST, GET))
+import Data.Argonaut (encodeJson)
 
 import Data.Lens.Setter((.~))
 import Data.Lens.Getter((^.))
+import Data.Lens as L
 
 import Config(serverRoot)
 
-import Utils.Request(request)
+import Utils.Request(request, request')
 import Utils.Other(eitherConsoleEvent, mapi)
 
 import Types.User
@@ -68,6 +71,8 @@ data Event
 
   | MedicamentsRequest
   | MedicamentsResponse (Array Medicament)
+  | ReplaceNewMedicament Medicament
+  | AddMedicamentRequest
 
 
 initEvents :: Array Event
@@ -76,6 +81,7 @@ initEvents = [Tick tickEvents
 
 tickEvents :: Array Event
 tickEvents = [ DeviceEvent DeviceComponent.DeviceStatusRequest
+             , DeviceEvent DeviceComponent.AliveRequest
              , MedicamentsRequest
              , TreatmentEvent Treatment.TreatmentsRequest
              , ShoppingEvent Shopping.ShoppingListsRequest]
@@ -131,6 +137,20 @@ foldp MedicamentsRequest st = onlyEffects st
 foldp (MedicamentsResponse meds) st =
   noEffects $ st # medicaments .~ meds
 
+foldp (ReplaceNewMedicament m) st =
+  noEffects $ st # newMedicament .~ m
+
+foldp AddMedicamentRequest st =
+  { state: st { newMedicament = defaultMedicament }
+  , effects:
+    [ let path = serverRoot <> "private/medicament/add/"
+          d = Just $ encodeJson st.newMedicament
+      in request' st.jwt POST path d $> Nothing
+    ]
+  }
+
+
+
 
 ----------------------------------------------
 --             VIEW                         --
@@ -138,18 +158,33 @@ foldp (MedicamentsResponse meds) st =
 
   
 view :: State -> HTML Event
-view s = do
-  mapEvent NavigationEvent $ Navigation.view s
+view st = do
+  mapEvent NavigationEvent $ Navigation.view st
   hr
-  when (s.error /= "") do
+  when (st.error /= "") do
     p
       ! style (color red)
-      $ text s.error
+      $ text st.error
     button
       #! onClick (const HideDebug)
       $ text "Close"
-  mapEvent DeviceEvent $ DeviceComponent.view s
-  mapEvent TreatmentEvent $ Treatment.view s
-  mapEvent ShoppingEvent $ Shopping.view s
+  when (st ^. me ^. status == "Admin") renderNewMedicament
+  mapEvent DeviceEvent $ DeviceComponent.view st
+  mapEvent TreatmentEvent $ Treatment.view st
+  mapEvent ShoppingEvent $ Shopping.view st
+
+  where
+    renderNewMedicament = do
+      p $ text "Add new Medicament"
+      let btn = button
+                ! type' "button" 
+                #! onClick (const AddMedicamentRequest)
+                $ text "Add"
+          fields =
+            field name 
+            <> (description
+                <<< L.lens (fromMaybe "None") (const Just)
+               .| flip (*>) btn)
+      form st.newMedicament fields ReplaceNewMedicament
 
 

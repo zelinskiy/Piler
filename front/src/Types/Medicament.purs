@@ -1,6 +1,6 @@
 module Types.Medicament where
 
-import Data.Maybe(Maybe)
+import Data.Maybe(Maybe(Just))
 import Data.Argonaut (class EncodeJson, class DecodeJson)
 import Data.Generic (class Generic)
 import Data.Argonaut.Generic.Aeson (encodeJson, decodeJson) as A
@@ -26,6 +26,14 @@ instance decodeJsonMedicament :: DecodeJson Medicament where
 
 instance encodeJsonMedicament :: EncodeJson Medicament where
   encodeJson = A.encodeJson
+
+defaultMedicament :: Medicament
+defaultMedicament = Medicament
+                { id: 0
+                , name: "New medicament"
+                , diameter: 1
+                , height: 1
+                , description: Just "Some description" } 
 
 
 derive instance newtypeMedicament :: Newtype Medicament _

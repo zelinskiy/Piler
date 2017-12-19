@@ -19,9 +19,12 @@ import Types.Medicament
 import Types.User
 
 type State = { deviceStatus :: Maybe DeviceStatus
+             , newCmd :: String
+             , deviceAlive :: Boolean
              , treatment :: Array FullTreatmentPlan
              , newTreatmentRow :: TreatmentPlanRow
              , medicaments :: Array Medicament
+             , newMedicament :: Medicament
              , newListName :: String
              , me :: User
              , jwt :: JWT
@@ -31,9 +34,12 @@ type State = { deviceStatus :: Maybe DeviceStatus
 
 init :: JWT -> State
 init jwt = { deviceStatus: Nothing
+           , newCmd: "SSS"
+           , deviceAlive : false
            , treatment: []
            , newTreatmentRow: defaultTreatmentPlanRow
-           , medicaments : []
+           , medicaments: []
+           , newMedicament: defaultMedicament
            , newListName: "My Shopping List"
            , me: defaultUser
            , jwt: jwt
@@ -46,6 +52,12 @@ init jwt = { deviceStatus: Nothing
 deviceStatus :: Lens' State (Maybe DeviceStatus)
 deviceStatus = prop (SProxy :: SProxy "deviceStatus")
 
+newCmd :: Lens' State String
+newCmd = prop (SProxy :: SProxy "newCmd")
+
+deviceAlive :: Lens' State Boolean
+deviceAlive = prop (SProxy :: SProxy "deviceAlive")
+
 treatment :: Lens' State (Array FullTreatmentPlan)
 treatment = prop (SProxy :: SProxy "treatment")
 
@@ -54,6 +66,9 @@ newTreatmentRow = prop (SProxy :: SProxy "newTreatmentRow")
 
 medicaments :: Lens' State (Array Medicament)
 medicaments = prop (SProxy :: SProxy "medicaments")
+
+newMedicament :: Lens' State Medicament
+newMedicament = prop (SProxy :: SProxy "newMedicament")
 
 me :: Lens' State User
 me = prop (SProxy :: SProxy "me")

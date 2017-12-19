@@ -6,12 +6,13 @@ import Prelude
 import Data.Int (toNumber)
 import Data.String(joinWith)
 import Data.Foldable(for_)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, isNothing)
+import Data.Either (either)
 import Control.Monad.Aff (delay)
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Control.Bind((=<<))
 import Pux (EffModel, noEffects, onlyEffects, mapEffects)
-import Pux.DOM.Events (DOMEvent, onClick, targetValue)
+import Pux.DOM.Events (DOMEvent, onClick, targetValue, onChange)
 import Pux.DOM.HTML.Attributes (style)
 import Pux.DOM.HTML (HTML)
 import Text.Smolder.HTML (span, button, br, p, hr, h3, h4, input)
@@ -22,6 +23,8 @@ import CSS.Geometry(marginRight, width)
 import CSS.Size(em)
 import Data.HTTP.Method (Method (POST, GET))
 import Data.Lens.Setter((.~))
+import Data.Lens.Getter((^.))
+import Data.Lens as L
 
 import Config(serverRoot)
 import Utils.Request(request, request')
@@ -43,6 +46,10 @@ data Event
   | RefillRequest Int Int
   | PulloutRequest Int Int
   | DispenceRequest Int Int
+  | AliveRequest
+  | AliveResponse Boolean
+  | UpdateCmd DOMEvent
+  | CmdRequest
 
 
 foldp :: forall fx. Event
@@ -82,11 +89,53 @@ foldp (DispenceRequest mid q) st = onlyEffects st
     in request' st.jwt GET path Nothing
        $> Just DeviceStatusRequest ]
 
+foldp AliveRequest st@{ deviceStatus: Nothing } =
+  noEffects st
+
+foldp AliveRequest st@{ deviceStatus: Just ds } = onlyEffects st
+  [ let path = "http://" <> (ds ^. device ^. ip) <> "/greet/"
+    in either
+       (\(_ :: String) -> Just $ AliveResponse false)
+       (\(_ :: Array Unit) -> Just $ AliveResponse true)
+       <$> request st.jwt GET path Nothing ]
+
+foldp (AliveResponse b) st =
+  noEffects $ st { deviceAlive = b }
+
+foldp (UpdateCmd f) st =
+  noEffects $ st { newCmd = targetValue f }
+  
+foldp CmdRequest st@{ deviceStatus: ds }
+  | not st.deviceAlive || isNothing ds = noEffects st
+  | otherwise = onlyEffects st
+    [ let path = "http://"
+                 <> (ds <#> L.view device <#> L.view ip # fromMaybe "")
+                 <> "/cmd/" <> st.newCmd <> "/"
+      in request' st.jwt GET path Nothing $> Nothing ]
+
+
+
 
 view :: State -> HTML Event
 view st@{ deviceStatus: Just (DeviceStatus s) }  = do
   h3 $ text "Your device status:"
   p $ text $ "ip: " <> ip
+  span $ text "Alive: "
+  span 
+    ! style (color if st.deviceAlive
+                   then green
+                   else red)
+    $ text "o"
+  when st.deviceAlive do
+    p $ text "Command: "
+    input
+      ! type' "text"
+      #! onChange UpdateCmd
+      ! value st.newCmd
+    button
+      #! onClick (const CmdRequest)
+      $ text "Send"
+
   h4 $ text "Storage:"
   for_ s.storage renderStorage
   where
@@ -119,6 +168,7 @@ view st@{ deviceStatus: Just (DeviceStatus s) }  = do
       # map (\m -> m.name <> " [" <> show m.id <> "]")
       # fromMaybe "Unknown"
       # span <<< text
+    
       
 
 view { deviceStatus: Nothing } = do

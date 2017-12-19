@@ -128,6 +128,9 @@ view st@{ treatment: tps } = do
           mids = st.medicaments <#> L.view M.id
           quantFieldModifier h =
             h ! (style $ width $ 5.0 # em) ! A.min "1"
+          -- NOTE: This is `hacked` by rewriting the original
+          -- asDropdown. But there must be some clever
+          -- solution with custom Lens'
           fields = field (at <<< asDateTimeString)
                    <> (quantity .| quantFieldModifier)
                    <> field (treatmentPlanId

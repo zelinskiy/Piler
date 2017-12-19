@@ -33,3 +33,4 @@ device = _Newtype <<< prop (SProxy :: SProxy "device")
 
 storage :: Lens' DeviceStatus (Array DeviceStorage)
 storage = _Newtype <<< prop (SProxy :: SProxy "storage")
+

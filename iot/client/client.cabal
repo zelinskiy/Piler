@@ -33,6 +33,7 @@ library
                      , stm
                      , string-conversions
                      , wai
+                     , wai-cors
                      , warp
   default-language:    Haskell2010
 

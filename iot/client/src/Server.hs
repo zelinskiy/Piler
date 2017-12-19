@@ -26,9 +26,14 @@ type API =
     :> Get '[JSON] ()
   :<|> "alarm"
     :> Get '[JSON] ()
+  :<|> "greet"
+    :> Get '[JSON] ()
+  :<|> "cmd"
+    :> Capture "cmd" String
+    :> Get '[JSON] ()
 
 server :: Configuration -> Server API
-server c = dispence :<|> alarm
+server c = dispence :<|> alarm :<|> greet :<|> cmd 
   where
     h = devicePort c
     jwt = token c
@@ -47,4 +52,6 @@ server c = dispence :<|> alarm
     alarm = liftIO $ do
       send h "S"
       putStrLn "ALARM!"
+    greet = return ()
+    cmd c = liftIO $ send h (cs c) >> putStrLn c
     
