@@ -7,6 +7,7 @@ const int silentPin = 3;
 const int soundPin = 4;
 const int redPin = 5;
 const int yellowPin = 6;
+const int sensorPin = 0;
 
 bool silent = false;
 
@@ -59,8 +60,10 @@ void loop() {
             break;
           case 'W':
             silent = false;
-            break;          
-
+            break;
+          case 'C':
+            Serial.println(checkSensor());
+            break;
         }
     }
 }
@@ -100,6 +103,10 @@ inline void forward(){
   for(int i = 0; i < times; i++){    
     myStepper.step(stepsPerRevolution);     
   }
+  if(checkSensor() > 0) {
+    Serial.println("EX: Caret still retracted");
+    unexpectedBehaviour();
+  }
 }
 
 inline void backward(){
@@ -107,6 +114,10 @@ inline void backward(){
   for(int i = 0; i < times; i++){    
     myStepper.step(-stepsPerRevolution);     
   }
+  if(checkSensor() == 0){
+    Serial.println("EX: Caret not retracted");
+    unexpectedBehaviour();
+  }    
 }
 
 inline void light(int duration){
@@ -123,3 +134,24 @@ inline void sound(int duration){
     digitalWrite(soundPin, LOW);
     delay(duration);
 }
+
+inline int checkSensor(){
+  int mx = 0;
+  int a = 0;
+  for (int i = 0; i < 10; i++){
+    a = analogRead(sensorPin);
+    if (a > mx) mx = a;
+    delay(10);
+  }
+  return mx;
+}
+
+void unexpectedBehaviour(){
+  while(true){
+    setLights(1,0);
+    delay(100);
+    setLights(0,0);
+    delay(100);
+  }   
+}
+
