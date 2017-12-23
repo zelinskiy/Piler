@@ -1,0 +1,16 @@
+module com.example.helloactivities.MainActivity where
+
+import froid.app.Activity
+import froid.content.Context
+import froid.os.Bundle
+import froid.widget.TextView
+
+native module type Activity where {}
+
+onCreate :: Activity -> Maybe Bundle -> IO ()
+onCreate this bundle = do
+	tv <- TextView.new this
+	tv.setText "Hello, Frege!"
+	this.setContentView tv
+
+

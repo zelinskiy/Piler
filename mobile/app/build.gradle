@@ -1,0 +1,102 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 27
+    buildToolsVersion "27.0.3"
+    defaultConfig {
+        applicationId "com.example.helloactivities"
+        minSdkVersion 23
+        targetSdkVersion 27
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    sourceSets {
+        main {
+            java.srcDirs += 'src/main/frege/'
+        }
+    }
+    dexOptions {
+        javaMaxHeapSize "4g"
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+    testCompile 'junit:junit:4.12'
+}
+
+
+
+project.afterEvaluate {
+    extensions.compileFrege = {
+        description = 'Compile Frege to Java'
+        javaexec {
+            configurations.compile.resolve().each {
+                classpath += files(it.toString())
+            }
+
+            main = 'frege.compiler.Main'
+            // list of all aar dependencies
+            def rootDir = project.rootDir
+            def localProperties = new File(rootDir, "local.properties")
+            def androidJarPath = ""
+            if (localProperties.exists()) {
+                Properties properties = new Properties()
+                localProperties.withInputStream { instr ->
+                    properties.load(instr)
+                }
+                def sdkDir = properties.getProperty('sdk.dir')
+                androidJarPath = sdkDir +
+                        String.format("/platforms/%s/android.jar",
+                                android.compileSdkVersion).replace('/' as char, File.separatorChar)
+            }
+
+            // 'mockAndroidJar' for compilation
+            classpath += files(androidJarPath)
+            def list = [androidJarPath]
+            def applicationId = (android.defaultConfig.applicationId + ".").replace('.' as char, File.separatorChar)
+            // build directory for android studio 2.2 and below
+            /* def build_directory = new File(rootProject.projectDir.path +
+                    "/app/build/".replace('/' as char, File.separatorChar)) */
+            // build directory for android studio 2.3+
+            def build_directory = new File(System.getProperty("user.home") +
+                    "/.android/build-cache/".replace('/' as char, File.separatorChar))
+            build_directory.eachFileRecurse (groovy.io.FileType.FILES) { file ->
+                if (file.path.endsWith(".jar")) {
+                    list << file.path
+                    classpath += files(file.path)
+                }
+            }
+
+            def javaPath = new File("app/src/main/java")
+
+            if (!javaPath.exists()) {
+                javaPath.mkdirs()
+            }
+
+            def appPath = "src/main/frege/".replace('/' as char, File.separatorChar)
+            def a = ['-j', '-target', '1.7', '-v', '-inline', '-O', '-d', 'src/main/java', '-make',
+                     '-fp', list.join(';'),
+                     '-sp', appPath, appPath ]
+            println 'Frege compiler args: "' + a.join(' ') + '"'
+            args (*a)
+        }
+    }
+    try {
+        compileFrege()
+    } catch (Exception e) {
+        // all error handling is shown on the gradle console.
+        System.err << "Frege compile failed.\n"
+        System.err << e.toString() + "\n"
+    }
+}

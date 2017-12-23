@@ -35,3 +35,12 @@ static/dist/
 .psci_modules
 npm-debug.log
 **DS_Store
+
+.gradle
+/mobile/local.properties
+/mobile/.idea/workspace.xml
+/mobile/.idea/libraries
+/mobile/build
+/mobile/captures
+.externalNativeBuild
+/mobile/app/src/main/java
