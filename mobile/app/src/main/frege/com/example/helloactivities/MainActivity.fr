@@ -10,15 +10,11 @@ import froid.widget.EditText
 import froid.widget.Button
 import froid.view.View
 import froid.Types
-import froid.util.Log
 
-import Control.Concurrent
-import Java.Util
-
-import com.example.helloactivities.Net(req)
+import com.example.helloactivities.Net
 
 -- TODO:
--- Two Activities
+-- Two Activities (?)
 -- Notification (Some fkn java)
 
 native module type Activity where {}
@@ -35,7 +31,6 @@ pure native cmdInput "com.example.helloactivities.R.id.cmdInput" :: Int
 
 serverRoot = "http://192.168.0.90:8080/"
 
-type Headers = [(String, String)]
 type Ip = String
 
 data UI = UI { emailInput :: EditText
@@ -46,11 +41,12 @@ data UI = UI { emailInput :: EditText
              , cmdInput :: EditText
              , cmdButton :: Button }
 
+
 cmdHandler :: Ip -> Headers -> UI -> IO ()
 cmdHandler ip hs ui = do
   let path = "http://" ++ ip ++ "/cmd/"
   c <- ui.cmdInput.getText
-  catchAll $ req "GET" hs (path ++ CharSequence.toString c)
+  catchAll $ get hs (path ++ CharSequence.toString c)
   return ()
 
 
@@ -60,17 +56,16 @@ signHandler ui = do
   p <- ui.passInput.getText
   let headers = [("email", CharSequence.toString e), ("password", CharSequence.toString p)]
 
-  res <- catchAll $ req "GET" headers (serverRoot ++ "private2/device/my/status/formatted/")
+  res <- catchAll $ get headers (serverRoot ++ "private2/device/my/status/formatted/")
   ui.deviceStatusText.setText $ either (const "Cannot retrieve storage") id res
 
-  res <- catchAll $ req "GET" headers (serverRoot ++ "private2/treatment/my/full/formatted/")
+  res <- catchAll $ get headers (serverRoot ++ "private2/treatment/my/full/formatted/")
   ui.treatmentPlansText.setText $ either (const "Cannot retrieve notifications") id res
 
-  res <- catchAll $ req "GET" headers (serverRoot ++ "private2/treatment/my/id/")
+  res <- catchAll $ get headers (serverRoot ++ "private2/treatment/my/id/")
   case res of
     Left ex -> return ()
     Right ip -> Button.onClick ui.cmdButton (const $ cmdHandler ip headers ui)
-
 
 
 mkUI :: Activity -> IO UI

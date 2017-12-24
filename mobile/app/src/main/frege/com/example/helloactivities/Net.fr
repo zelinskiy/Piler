@@ -1,13 +1,18 @@
 module com.example.helloactivities.Net where
 
 import frege.java.IO
-
-import froid.Types
 import froid.util.Log
-
 import Control.Concurrent
 import Java.Util
 
+type Headers = [(String, String)]
+
+data Method = GET | POST | DELETE
+
+instance Show Method where
+  show GET = "GET"
+  show POST = "POST"
+  show DELETE = "DELETE"
 
 -- java.net interface
 
@@ -23,18 +28,14 @@ data URLConnection = native java.net.URLConnection
 data HttpURLConnection = native java.net.HttpURLConnection where
     native setRequestMethod :: MutableIO HttpURLConnection -> String -> IO () throws ProtocolException
     native setRequestProperty :: MutableIO HttpURLConnection -> String -> String -> IO ()
-    native setDoOutput :: MutableIO HttpURLConnection -> Bool -> IO ()
     native getOutputStream :: MutableIO HttpURLConnection -> IO OutputStream throws IOException
     native getInputStream :: MutableIO HttpURLConnection -> IO InputStream throws IOException
     native getResponseCode :: MutableIO HttpURLConnection -> IO Int throws IOException
-    native getHeaderField :: MutableIO HttpURLConnection -> Int -> IO String
-    native getHeaderFields :: MutableIO HttpURLConnection -> IOMutable (Map String (Mutable s (List String)))
-    native disconnect :: MutableIO HttpURLConnection -> IO ()
 
 native toHttpURLConnection "(java.net.HttpURLConnection)"
   :: MutableIO URLConnection -> IO (ClassCastException | MutableIO HttpURLConnection)
 
-req :: String -> [(String, String)] -> String -> IO String
+req :: Method -> Headers -> String -> IO String
 req method headers path = do
   r <- newEmptyMVar
   forkIO (helper >>= putMVar r)
@@ -44,7 +45,7 @@ req method headers path = do
       url <- URL.new path
       conn <- url.openConnection
       client <- toHttpURLConnection conn >>= either (\_ -> error $ "Cast failed.") return
-      client.setRequestMethod method
+      client.setRequestMethod (show method)
       forM_ headers (uncurry client.setRequestProperty)
       is <- client.getInputStream
       rdr <- InputStreamReader.new is "UTF-8"
@@ -52,3 +53,5 @@ req method headers path = do
       !res <- bfr.readLine
       is.close
       return $ show res
+
+get = req GET
