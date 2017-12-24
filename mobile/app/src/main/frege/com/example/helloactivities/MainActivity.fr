@@ -1,16 +1,33 @@
 module com.example.helloactivities.MainActivity where
 
+import frege.java.Net
+import frege.java.IO
+
 import froid.app.Activity
 import froid.content.Context
 import froid.os.Bundle
 import froid.widget.TextView
 
+import Control.Concurrent
+
 native module type Activity where {}
+
+req :: String -> IO String
+req path = do
+  url <- URL.new path
+  ios <- url.openStream
+  rdr <- InputStreamReader.new ios "UTF-8"
+  bfr <- BufferedReader.new rdr
+  !res <- bfr.readLine
+  ios.close
+  return $ show res
 
 onCreate :: Activity -> Maybe Bundle -> IO ()
 onCreate this bundle = do
-	tv <- TextView.new this
-	tv.setText "Hello, Frege!"
-	this.setContentView tv
+  tv <- TextView.new this
+  resM <- newEmptyMVar
+  forkIO (req "http://192.168.0.90:8080/public/greeting/" >>= putMVar resM)
+  tv.setText =<< takeMVar resM
+  this.setContentView tv
 
 
