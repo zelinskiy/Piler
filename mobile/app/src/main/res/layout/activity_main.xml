@@ -10,11 +10,74 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.example.helloactivities.MainActivity">
 
-    <TextView
-        android:id="@+id/text_head"
+    <EditText
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello World!" />
+        android:inputType="textPassword"
+        android:ems="10"
+        android:id="@+id/passInput"
+        android:layout_below="@+id/emailInput"
+        android:layout_alignStart="@+id/emailInput"
+        android:layout_toStartOf="@+id/signButton"
+        android:text="pass" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textEmailAddress"
+        android:ems="10"
+        android:id="@+id/emailInput"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true"
+        android:layout_toStartOf="@+id/signButton"
+        android:text="user1@mail.com" />
+
+    <Button
+        android:text="Sign In"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/signButton"
+        android:layout_alignBottom="@+id/passInput"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true" />
+
+    <TextView
+        android:text="Device status not loaded"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/passInput"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="29dp"
+        android:id="@+id/deviceStatusText"
+        android:layout_alignParentEnd="true" />
+
+    <TextView
+        android:text="Notifications not loaded"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/treatmentPlansText"
+        android:layout_below="@+id/deviceStatusText"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textPersonName"
+        android:text="SLLS"
+        android:ems="10"
+        android:id="@+id/cmdInput"
+        android:layout_below="@+id/treatmentPlansText"
+        android:layout_alignParentStart="true" />
+
+    <Button
+        android:text="CMD"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/cmdButton"
+        android:layout_below="@+id/treatmentPlansText"
+        android:layout_alignParentEnd="true"
+        android:visibility="visible" />
 
 </RelativeLayout>
 

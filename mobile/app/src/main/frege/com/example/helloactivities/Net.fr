@@ -1,0 +1,54 @@
+module com.example.helloactivities.Net where
+
+import frege.java.IO
+
+import froid.Types
+import froid.util.Log
+
+import Control.Concurrent
+import Java.Util
+
+
+-- java.net interface
+
+data ProtocolException = native java.net.ProtocolException
+data MalformedURLException = native java.net.MalformedURLException
+
+data URL = native java.net.URL where
+    native new              :: String -> STMutable RealWorld URL throws MalformedURLException
+    native openConnection   :: MutableIO URL -> IOMutable URLConnection throws IOException
+
+data URLConnection = native java.net.URLConnection
+
+data HttpURLConnection = native java.net.HttpURLConnection where
+    native setRequestMethod :: MutableIO HttpURLConnection -> String -> IO () throws ProtocolException
+    native setRequestProperty :: MutableIO HttpURLConnection -> String -> String -> IO ()
+    native setDoOutput :: MutableIO HttpURLConnection -> Bool -> IO ()
+    native getOutputStream :: MutableIO HttpURLConnection -> IO OutputStream throws IOException
+    native getInputStream :: MutableIO HttpURLConnection -> IO InputStream throws IOException
+    native getResponseCode :: MutableIO HttpURLConnection -> IO Int throws IOException
+    native getHeaderField :: MutableIO HttpURLConnection -> Int -> IO String
+    native getHeaderFields :: MutableIO HttpURLConnection -> IOMutable (Map String (Mutable s (List String)))
+    native disconnect :: MutableIO HttpURLConnection -> IO ()
+
+native toHttpURLConnection "(java.net.HttpURLConnection)"
+  :: MutableIO URLConnection -> IO (ClassCastException | MutableIO HttpURLConnection)
+
+req :: String -> [(String, String)] -> String -> IO String
+req method headers path = do
+  r <- newEmptyMVar
+  forkIO (helper >>= putMVar r)
+  takeMVar r
+  where
+    helper = do
+      url <- URL.new path
+      conn <- url.openConnection
+      client <- toHttpURLConnection conn >>= either (\_ -> error $ "Cast failed.") return
+      client.setRequestMethod method
+      forM_ headers (uncurry client.setRequestProperty)
+      is <- client.getInputStream
+      rdr <- InputStreamReader.new is "UTF-8"
+      bfr <- BufferedReader.new rdr
+      !res <- bfr.readLine
+      is.close
+      return $ show res

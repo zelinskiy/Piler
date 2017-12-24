@@ -8,8 +8,8 @@ import Database.Persist.Sqlite
 import Servant hiding (route)
 
 import Control.Monad.Trans.Reader
-
-
+import Data.Maybe(fromMaybe)
+import Data.List(find)
 
 
 import Network.HTTP.Simple
@@ -25,8 +25,9 @@ import Utils
 type API =
          "my"
       :>     ("all"      :> Get '[JSON] (Entity Device)
-         :<|> "id"       :> Get '[JSON] (Key Device)
+         :<|> "id"       :> Get '[PlainText] String
          :<|> "status"   :> Get '[JSON] DeviceStatus
+         :<|> "status"   :> "formatted" :> Get '[PlainText] String
          :<|> "stored"
            :> Capture "mid" (Key Medicament)
            :> Get '[JSON] Int
@@ -48,6 +49,7 @@ server =
        (myDevice
   :<|> myDeviceId
   :<|> myDeviceStatus
+  :<|> myDeviceStatusF
   :<|> storedOf
   :<|> refill
   :<|> pullout
@@ -59,7 +61,7 @@ server =
       case mbDevice of
         Just d -> return d
         Nothing -> throwError err403
-    myDeviceId = entityKey <$> myDevice
+    myDeviceId = deviceIp <$> entityVal <$> myDevice
     myDeviceStatus = do
       d <- myDevice
       s <- db $
@@ -67,6 +69,20 @@ server =
       return DeviceStatus
         { device = d
         , storage = s }
+
+    myDeviceStatusF = do
+      d <- myDevice
+      ss <- db $ do
+        storages <- selectList [DeviceStorageDeviceId ==. entityKey d] []
+        meds <- selectList [] []
+        let names = map (\s -> fromMaybe "Unknown"
+                          $ medicamentName . entityVal
+                          <$> find (\m -> entityKey m == deviceStorageMedicamentId (entityVal s)) meds)
+                    storages
+        let quantities = map (show . deviceStorageQuantity . entityVal) storages
+        return $ zipWith (\q n -> q ++ " of " ++ n) quantities names
+              
+      return $ unlines $ ("Device " ++ show (deviceIp (entityVal d))):ss
         
     storedOf mid = do
       did <- entityKey <$> myDevice

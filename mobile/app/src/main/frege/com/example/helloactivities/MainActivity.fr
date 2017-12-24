@@ -1,33 +1,100 @@
 module com.example.helloactivities.MainActivity where
 
-import frege.java.Net
 import frege.java.IO
 
 import froid.app.Activity
 import froid.content.Context
 import froid.os.Bundle
 import froid.widget.TextView
+import froid.widget.EditText
+import froid.widget.Button
+import froid.view.View
+import froid.Types
+import froid.util.Log
 
 import Control.Concurrent
+import Java.Util
+
+import com.example.helloactivities.Net(req)
+
+-- TODO:
+-- Two Activities
+-- Notification (Some fkn java)
 
 native module type Activity where {}
 
-req :: String -> IO String
-req path = do
-  url <- URL.new path
-  ios <- url.openStream
-  rdr <- InputStreamReader.new ios "UTF-8"
-  bfr <- BufferedReader.new rdr
-  !res <- bfr.readLine
-  ios.close
-  return $ show res
+pure native rActivityMain "com.example.helloactivities.R.layout.activity_main" :: Int
+pure native deviceStatusText "com.example.helloactivities.R.id.deviceStatusText" :: Int
+pure native treatmentPlansText "com.example.helloactivities.R.id.treatmentPlansText" :: Int
+pure native signButton "com.example.helloactivities.R.id.signButton" :: Int
+pure native emailInput "com.example.helloactivities.R.id.emailInput" :: Int
+pure native passInput "com.example.helloactivities.R.id.passInput" :: Int
+pure native cmdButton "com.example.helloactivities.R.id.cmdButton" :: Int
+pure native cmdInput "com.example.helloactivities.R.id.cmdInput" :: Int
+
+
+serverRoot = "http://192.168.0.90:8080/"
+
+type Headers = [(String, String)]
+type Ip = String
+
+data UI = UI { emailInput :: EditText
+             , passInput :: EditText
+             , signButton :: Button
+             , deviceStatusText :: TextView
+             , treatmentPlansText :: TextView
+             , cmdInput :: EditText
+             , cmdButton :: Button }
+
+cmdHandler :: Ip -> Headers -> UI -> IO ()
+cmdHandler ip hs ui = do
+  let path = "http://" ++ ip ++ "/cmd/"
+  c <- ui.cmdInput.getText
+  catchAll $ req "GET" hs (path ++ CharSequence.toString c)
+  return ()
+
+
+signHandler :: UI -> IO ()
+signHandler ui = do
+  e <- ui.emailInput.getText
+  p <- ui.passInput.getText
+  let headers = [("email", CharSequence.toString e), ("password", CharSequence.toString p)]
+
+  res <- catchAll $ req "GET" headers (serverRoot ++ "private2/device/my/status/formatted/")
+  ui.deviceStatusText.setText $ either (const "Cannot retrieve storage") id res
+
+  res <- catchAll $ req "GET" headers (serverRoot ++ "private2/treatment/my/full/formatted/")
+  ui.treatmentPlansText.setText $ either (const "Cannot retrieve notifications") id res
+
+  res <- catchAll $ req "GET" headers (serverRoot ++ "private2/treatment/my/id/")
+  case res of
+    Left ex -> return ()
+    Right ip -> Button.onClick ui.cmdButton (const $ cmdHandler ip headers ui)
+
+
+
+mkUI :: Activity -> IO UI
+mkUI this = do
+  ds <- TextView.fromView this.findViewById deviceStatusText
+  tp <- TextView.fromView this.findViewById treatmentPlansText
+  sign <- Button.fromView this.findViewById signButton
+  email <- EditText.fromView this.findViewById emailInput
+  pass <- EditText.fromView this.findViewById passInput
+  cmd <- EditText.fromView this.findViewById cmdInput
+  runCmd <- Button.fromView this.findViewById cmdButton
+  return UI { emailInput = email
+            , passInput = pass
+            , signButton = sign
+            , deviceStatusText = ds
+            , treatmentPlansText = tp
+            , cmdInput = cmd
+            , cmdButton = runCmd }
+
 
 onCreate :: Activity -> Maybe Bundle -> IO ()
-onCreate this bundle = do
-  tv <- TextView.new this
-  resM <- newEmptyMVar
-  forkIO (req "http://192.168.0.90:8080/public/greeting/" >>= putMVar resM)
-  tv.setText =<< takeMVar resM
-  this.setContentView tv
+onCreate this _ = do
+  this.setContentView rActivityMain
+  ui <- mkUI this
+  Button.onClick ui.signButton (const $ signHandler ui)
 
 

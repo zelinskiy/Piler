@@ -5,6 +5,8 @@ import Servant
 import Data.Maybe
 import Control.Monad.Trans.Reader
 import Control.Monad
+import Data.List(find)
+import Data.Time.Format
 
 import Model
 import JsonModel (FullTreatmentPlan(..))
@@ -14,6 +16,8 @@ type API =
          "my"
       :>      ("full"
             :> Get '[JSON] [FullTreatmentPlan]
+          :<|> "full" :> "formatted"
+            :> Get '[PlainText] String
           :<|> "plans"
             :> Get '[JSON] [Entity TreatmentPlan]
           :<|> "rows"
@@ -46,6 +50,7 @@ type API =
 server :: PrivateServer API
 server =
        (myFullTreatmentPlans
+        :<|> myFullTreatmentF
         :<|> myTreatmentPlans
         :<|> myTreatmentPlanRows)
   -- TODO: Check that I own these plans
@@ -79,6 +84,23 @@ server =
             { treatmentPlan = p
             , treatmentPlanRows = filter (filt p) rows })
         plans
+        
+    myFullTreatmentF = do      
+      rows <- map entityVal <$> myTreatmentPlanRows
+      meds <- db $ selectList [] []
+      
+      let names = map (\s -> fromMaybe "Unknown"
+                        $ medicamentName . entityVal
+                        <$> find (\m -> entityKey m
+                                   == treatmentPlanRowMedicamentId s)
+                            meds)
+                  rows
+      let quantities = map (show . treatmentPlanRowQuantity) rows
+      let times = map (formatTime defaultTimeLocale "%d.%m.%Y (%H:%M)"
+                       . treatmentPlanRowAt) rows
+      return $ unlines $ zipWith3
+        (\q n d -> q ++ " of " ++ n ++ " at " ++ d)
+        quantities names times
         
     addTreatmentPlan =
       myDevice >>= db . insert . TreatmentPlan
