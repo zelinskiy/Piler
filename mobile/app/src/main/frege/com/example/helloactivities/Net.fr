@@ -4,6 +4,7 @@ import frege.java.IO
 import froid.util.Log
 import Control.Concurrent
 import Java.Util
+import froid.Types
 
 type Headers = [(String, String)]
 
@@ -18,6 +19,9 @@ instance Show Method where
 
 data ProtocolException = native java.net.ProtocolException
 data MalformedURLException = native java.net.MalformedURLException
+derive Exceptional MalformedURLException
+derive Exceptional ProtocolException
+derive Exceptional ClassCastException
 
 data URL = native java.net.URL where
     native new              :: String -> STMutable RealWorld URL throws MalformedURLException
@@ -28,30 +32,41 @@ data URLConnection = native java.net.URLConnection
 data HttpURLConnection = native java.net.HttpURLConnection where
     native setRequestMethod :: MutableIO HttpURLConnection -> String -> IO () throws ProtocolException
     native setRequestProperty :: MutableIO HttpURLConnection -> String -> String -> IO ()
-    native getOutputStream :: MutableIO HttpURLConnection -> IO OutputStream throws IOException
     native getInputStream :: MutableIO HttpURLConnection -> IO InputStream throws IOException
-    native getResponseCode :: MutableIO HttpURLConnection -> IO Int throws IOException
 
 native toHttpURLConnection "(java.net.HttpURLConnection)"
   :: MutableIO URLConnection -> IO (ClassCastException | MutableIO HttpURLConnection)
 
-req :: Method -> Headers -> String -> IO String
+
+req :: Method -> Headers -> String -> IO (String | String)
 req method headers path = do
   r <- newEmptyMVar
-  forkIO (helper >>= putMVar r)
+  forkIO $ do
+    res <- helper
+      `catch` (\(e::ClassCastException) -> return (Left "ClassCastException"))
+      `catch` (\(e::MalformedURLException) -> return (Left "MalformedURLException"))
+      `catch` (\(e::IOException) -> return (Left "IOException"))
+      `catch` (\(e::ProtocolException) -> return (Left "ProtocolException"))
+      `catch` (\(u::Undefined) -> return (Left "Undefined"))
+      `catch` (\(e::Exception) -> return (Left "Exception"))
+    putMVar r res
   takeMVar r
   where
     helper = do
       url <- URL.new path
       conn <- url.openConnection
-      client <- toHttpURLConnection conn >>= either (\_ -> error $ "Cast failed.") return
-      client.setRequestMethod (show method)
-      forM_ headers (uncurry client.setRequestProperty)
-      is <- client.getInputStream
-      rdr <- InputStreamReader.new is "UTF-8"
-      bfr <- BufferedReader.new rdr
-      !res <- bfr.readLine
-      is.close
-      return $ show res
+      mClient <- toHttpURLConnection conn
+      case mClient of
+        Left _ -> return $ Left "Bad cast"
+        Right client -> do
+          client.setRequestMethod (show method)
+          forM_ headers (uncurry client.setRequestProperty)
+          is <- client.getInputStream
+          rdr <- InputStreamReader.new is "UTF-8"
+          bfr <- BufferedReader.new rdr
+          !res <- bfr.getLines
+          is.close
+          return $ Right $ unlines res
+
 
 get = req GET

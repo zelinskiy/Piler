@@ -25,16 +25,13 @@ pure native treatmentPlansText "com.example.helloactivities.R.id.treatmentPlansT
 pure native signButton "com.example.helloactivities.R.id.signButton" :: Int
 pure native emailInput "com.example.helloactivities.R.id.emailInput" :: Int
 pure native passInput "com.example.helloactivities.R.id.passInput" :: Int
+pure native ipInput "com.example.helloactivities.R.id.ipInput" :: Int
 pure native cmdButton "com.example.helloactivities.R.id.cmdButton" :: Int
 pure native cmdInput "com.example.helloactivities.R.id.cmdInput" :: Int
 
-
-serverRoot = "http://192.168.0.90:8080/"
-
-type Ip = String
-
 data UI = UI { emailInput :: EditText
              , passInput :: EditText
+             , ipInput :: EditText
              , signButton :: Button
              , deviceStatusText :: TextView
              , treatmentPlansText :: TextView
@@ -42,12 +39,16 @@ data UI = UI { emailInput :: EditText
              , cmdButton :: Button }
 
 
-cmdHandler :: Ip -> Headers -> UI -> IO ()
-cmdHandler ip hs ui = do
-  let path = "http://" ++ ip ++ "/cmd/"
+cmdHandler :: UI -> IO ()
+cmdHandler ui = do
+  ip <- ui.ipInput.getText
+  let deviceRoot = "http://" ++ ip.toString ++ ":8070/"
+  let isRight (Right _) = true
+      isRight (Left _) = false
   c <- ui.cmdInput.getText
-  catchAll $ get hs (path ++ CharSequence.toString c)
-  return ()
+  res <- get [] (deviceRoot ++ "cmd/" ++ CharSequence.toString c)
+  either (const $ ui.cmdInput.setText "") (const $ return ()) res
+
 
 
 signHandler :: UI -> IO ()
@@ -56,16 +57,16 @@ signHandler ui = do
   p <- ui.passInput.getText
   let headers = [("email", CharSequence.toString e), ("password", CharSequence.toString p)]
 
-  res <- catchAll $ get headers (serverRoot ++ "private2/device/my/status/formatted/")
-  ui.deviceStatusText.setText $ either (const "Cannot retrieve storage") id res
+  ip <- ui.ipInput.getText
+  let serverRoot = "http://" ++ ip.toString ++ ":8080/"
 
-  res <- catchAll $ get headers (serverRoot ++ "private2/treatment/my/full/formatted/")
-  ui.treatmentPlansText.setText $ either (const "Cannot retrieve notifications") id res
+  res <- get headers (serverRoot ++ "private2/device/my/status/formatted/")
+  ui.deviceStatusText.setText $ either ("Cannot retrieve storage: " ++) id res
 
-  res <- catchAll $ get headers (serverRoot ++ "private2/treatment/my/id/")
-  case res of
-    Left ex -> return ()
-    Right ip -> Button.onClick ui.cmdButton (const $ cmdHandler ip headers ui)
+  res <- get headers (serverRoot ++ "private2/treatment/my/full/formatted/")
+  ui.treatmentPlansText.setText $ either ("Cannot retrieve notifications: " ++) id res
+
+  Button.onClick ui.cmdButton (const $ cmdHandler ui)
 
 
 mkUI :: Activity -> IO UI
@@ -75,10 +76,12 @@ mkUI this = do
   sign <- Button.fromView this.findViewById signButton
   email <- EditText.fromView this.findViewById emailInput
   pass <- EditText.fromView this.findViewById passInput
+  ip <- EditText.fromView this.findViewById ipInput
   cmd <- EditText.fromView this.findViewById cmdInput
   runCmd <- Button.fromView this.findViewById cmdButton
   return UI { emailInput = email
             , passInput = pass
+            , ipInput = ip
             , signButton = sign
             , deviceStatusText = ds
             , treatmentPlansText = tp
