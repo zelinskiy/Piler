@@ -1,0 +1,99 @@
+module com.example.helloactivities.LoginActivity where
+
+import frege.java.IO
+
+import froid.app.Activity
+import froid.content.Context
+import froid.content.Intent
+import froid.os.Bundle
+import froid.widget.TextView
+import froid.widget.EditText
+import froid.widget.Button
+import froid.view.View
+import froid.Types
+
+import com.example.helloactivities.Net
+import com.example.helloactivities.Utils
+import com.example.helloactivities.State
+
+native module type Activity where {}
+
+pure native rActivityLogin "com.example.helloactivities.R.layout.activity_login" :: Int
+pure native resultText "com.example.helloactivities.R.id.resultText" :: Int
+pure native signButton "com.example.helloactivities.R.id.signButton" :: Int
+pure native registerButton "com.example.helloactivities.R.id.registerButton" :: Int
+pure native emailInput "com.example.helloactivities.R.id.emailInput" :: Int
+pure native passInput "com.example.helloactivities.R.id.passInput" :: Int
+pure native ipInput "com.example.helloactivities.R.id.ipInput" :: Int
+pure native cMainActivity "com.example.helloactivities.MainActivity.class" :: Class a
+
+appEmailString :: String
+appEmailString = "com.example.helloactivities.EMAIL"
+
+appPassString :: String
+appPassString = "com.example.helloactivities.PASS"
+
+appIpString :: String
+appIpString = "com.example.helloactivities.IP"
+
+
+data UI = UI { emailInput :: EditText
+             , passInput :: EditText
+             , ipInput :: EditText
+             , signButton :: Button
+             , registerButton :: Button
+             , resultText :: TextView }
+
+getState :: UI -> IO State
+getState ui = do
+  e <- ui.emailInput.getText
+  p <- ui.passInput.getText
+  ip <- ui.ipInput.getText
+  return State { email = e.toString
+               , pass  = p.toString
+               , ip    = ip.toString }
+
+registerHandler :: UI -> IO ()
+registerHandler ui = ui.resultText.setText "Not implemented"
+
+signHandler :: Activity -> UI -> IO ()
+signHandler this ui = do
+  st <- getState ui
+  let headers = [("email", st.email), ("password", st.pass)]
+  ui.resultText.setText $ "Logging as " ++ st.email
+  res <- get headers (serverRoot st.ip ++ "private2/user/me/")
+  case res of
+    Left e -> ui.resultText.setText $ "Cannot login: " ++ e
+    Right _ -> do
+      ui.resultText.setText $ "Logged as " ++ st.email
+      intent <- Intent.new this cMainActivity
+      intent.putExtra appEmailString st.email
+      intent.putExtra appPassString st.pass
+      intent.putExtra appIpString st.ip
+      this.startActivityForResult intent 1
+
+
+
+mkUI :: Activity -> IO UI
+mkUI this = do
+  r <- TextView.fromView this.findViewById resultText
+  sign <- Button.fromView this.findViewById signButton
+  reg <- Button.fromView this.findViewById registerButton
+  email <- EditText.fromView this.findViewById emailInput
+  pass <- EditText.fromView this.findViewById passInput
+  ip <- EditText.fromView this.findViewById ipInput
+  return UI { emailInput = email
+            , passInput = pass
+            , ipInput = ip
+            , signButton = sign
+            , registerButton = reg
+            , resultText = r }
+
+
+onCreate :: Activity -> Maybe Bundle -> IO ()
+onCreate this _ = do
+  this.setContentView rActivityLogin
+  ui <- mkUI this
+
+  ui.registerButton.onClick (const $ registerHandler ui)
+  ui.signButton.onClick (const $ signHandler this ui)

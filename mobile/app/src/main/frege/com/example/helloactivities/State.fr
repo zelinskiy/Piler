@@ -1,0 +1,11 @@
+module com.example.helloactivities.State where
+
+data State = State { email :: String
+                   , pass :: String
+                   , ip :: String }
+
+emptyState :: State
+emptyState = State "" "" ""
+
+instance Show State where
+  show s = unlines [ s.email, s.pass, s.ip ]

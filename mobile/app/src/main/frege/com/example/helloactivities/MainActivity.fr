@@ -4,6 +4,7 @@ import frege.java.IO
 
 import froid.app.Activity
 import froid.content.Context
+import froid.content.Intent
 import froid.os.Bundle
 import froid.widget.TextView
 import froid.widget.EditText
@@ -12,87 +13,89 @@ import froid.view.View
 import froid.Types
 
 import com.example.helloactivities.Net
+import com.example.helloactivities.Utils
+import com.example.helloactivities.State
+import com.example.helloactivities.LoginActivity as LoginActivity()
 
--- TODO:
--- Two Activities (?)
--- Notification (Some fkn java)
+-- TODO: Notifications
 
 native module type Activity where {}
 
 pure native rActivityMain "com.example.helloactivities.R.layout.activity_main" :: Int
 pure native deviceStatusText "com.example.helloactivities.R.id.deviceStatusText" :: Int
 pure native treatmentPlansText "com.example.helloactivities.R.id.treatmentPlansText" :: Int
-pure native signButton "com.example.helloactivities.R.id.signButton" :: Int
-pure native emailInput "com.example.helloactivities.R.id.emailInput" :: Int
-pure native passInput "com.example.helloactivities.R.id.passInput" :: Int
-pure native ipInput "com.example.helloactivities.R.id.ipInput" :: Int
 pure native cmdButton "com.example.helloactivities.R.id.cmdButton" :: Int
 pure native cmdInput "com.example.helloactivities.R.id.cmdInput" :: Int
+pure native refreshButton "com.example.helloactivities.R.id.refreshButton" :: Int
+pure native notifyButton "com.example.helloactivities.R.id.notifyButton" :: Int
+pure native errorText "com.example.helloactivities.R.id.errorText" :: Int
 
-data UI = UI { emailInput :: EditText
-             , passInput :: EditText
-             , ipInput :: EditText
-             , signButton :: Button
-             , deviceStatusText :: TextView
+data UI = UI { deviceStatusText :: TextView
              , treatmentPlansText :: TextView
              , cmdInput :: EditText
-             , cmdButton :: Button }
+             , cmdButton :: Button
+             , refreshButton :: Button
+             , notifyButton :: Button
+             , errorText :: TextView }
 
+notifyHandler :: Activity -> State -> UI -> IO ()
+notifyHandler this st ui = return ()
 
-cmdHandler :: UI -> IO ()
-cmdHandler ui = do
-  ip <- ui.ipInput.getText
-  let deviceRoot = "http://" ++ ip.toString ++ ":8070/"
-  let isRight (Right _) = true
-      isRight (Left _) = false
+cmdHandler :: State -> UI -> IO ()
+cmdHandler st ui = do
   c <- ui.cmdInput.getText
-  res <- get [] (deviceRoot ++ "cmd/" ++ CharSequence.toString c)
-  either (const $ ui.cmdInput.setText "") (const $ return ()) res
+  res <- get [] (deviceRoot st.ip ++ "cmd/" ++ c.toString)
+  either (const $ return ()) (const $ ui.cmdInput.setText "") res
 
+refreshHandler :: State -> UI -> IO ()
+refreshHandler st ui = do
+  let headers = [("email", st.email), ("password", st.pass)]
 
-
-signHandler :: UI -> IO ()
-signHandler ui = do
-  e <- ui.emailInput.getText
-  p <- ui.passInput.getText
-  let headers = [("email", CharSequence.toString e), ("password", CharSequence.toString p)]
-
-  ip <- ui.ipInput.getText
-  let serverRoot = "http://" ++ ip.toString ++ ":8080/"
-
-  res <- get headers (serverRoot ++ "private2/device/my/status/formatted/")
+  res <- get headers (serverRoot st.ip ++ "private2/device/my/status/formatted/")
   ui.deviceStatusText.setText $ either ("Cannot retrieve storage: " ++) id res
 
-  res <- get headers (serverRoot ++ "private2/treatment/my/full/formatted/")
+  res <- get headers (serverRoot st.ip ++ "private2/treatment/my/full/formatted/")
   ui.treatmentPlansText.setText $ either ("Cannot retrieve notifications: " ++) id res
-
-  Button.onClick ui.cmdButton (const $ cmdHandler ui)
 
 
 mkUI :: Activity -> IO UI
 mkUI this = do
   ds <- TextView.fromView this.findViewById deviceStatusText
   tp <- TextView.fromView this.findViewById treatmentPlansText
-  sign <- Button.fromView this.findViewById signButton
-  email <- EditText.fromView this.findViewById emailInput
-  pass <- EditText.fromView this.findViewById passInput
-  ip <- EditText.fromView this.findViewById ipInput
   cmd <- EditText.fromView this.findViewById cmdInput
   runCmd <- Button.fromView this.findViewById cmdButton
-  return UI { emailInput = email
-            , passInput = pass
-            , ipInput = ip
-            , signButton = sign
-            , deviceStatusText = ds
+  refresh <- Button.fromView this.findViewById refreshButton
+  notif <- Button.fromView this.findViewById notifyButton
+  err <- TextView.fromView this.findViewById errorText
+  return UI { deviceStatusText = ds
             , treatmentPlansText = tp
+            , refreshButton = refresh
+            , notifyButton = notif
             , cmdInput = cmd
-            , cmdButton = runCmd }
+            , cmdButton = runCmd
+            , errorText = err }
+
+getState :: Activity -> IO State
+getState this = do
+  intent <- this.getIntent
+  e <- intent.getStringExtra LoginActivity.appEmailString
+  p <- intent.getStringExtra LoginActivity.appPassString
+  ip <- intent.getStringExtra LoginActivity.appIpString
+  return $ State e p ip
 
 
 onCreate :: Activity -> Maybe Bundle -> IO ()
 onCreate this _ = do
   this.setContentView rActivityMain
   ui <- mkUI this
-  Button.onClick ui.signButton (const $ signHandler ui)
+  st <- getState this
+
+  refreshHandler st ui
+
+  ui.errorText.setText $ unlines ["Logged as:", st.email, st.ip]
+  ui.refreshButton.onClick (const $ refreshHandler st ui)
+  ui.cmdButton.onClick (const $ cmdHandler st ui)
+  ui.notifyButton.onClick (const $ notifyHandler this st ui)
+  return ()
 
 

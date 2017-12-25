@@ -1,0 +1,7 @@
+module com.example.helloactivities.Utils where
+
+serverRoot :: String -> String
+serverRoot ip = "http://" ++ ip ++ ":8080/"
+
+deviceRoot :: String -> String
+deviceRoot ip = "http://" ++ ip ++ ":8070/"
