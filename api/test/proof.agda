@@ -1,4 +1,6 @@
+
 open import Agda.Primitive
+
 
 infix 4 _≡_
 
@@ -7,6 +9,14 @@ data _≡_ {a} {A : Set a} (x : A) : A → Set a where
 
 {-# BUILTIN EQUALITY _≡_ #-}
 {-# BUILTIN REFL refl #-}
+
+postulate trustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+
+data Singleton {a} {A : Set a} (x : A) : Set a where
+  _with≡_ : (y : A) → x ≡ y → Singleton x
+
+inspect : ∀ {a} {A : Set a} (x : A) → Singleton x
+inspect x = x with≡ refl
 
 cong :  ∀ {ℓ} {A : Set ℓ} → {a b : A} → {B : Set ℓ} → (f : A → B) →
   a ≡ b → (f a) ≡ (f b)
@@ -55,13 +65,27 @@ record Monad {ℓ₁ ℓ₂} (M : Set ℓ₁ → Set ℓ₂) : Set (lsuc ℓ₁ 
 
 open Monad {{...}} public
 
+postulate lift : {m : Set → Set₁} {t : (Set → Set₁) → Set → Set₁} {a : Set} → m a -> t m a
+
+data ReaderT (r : Set) (m : Set → Set₁) (a : Set) : Set₁ where
+  mkReaderT : (r -> m a) → ReaderT r m a
+
+runReaderT : ∀ {r m a} → ReaderT r m a → r → m a
+runReaderT (mkReaderT f) = f
+
+instance
+  monadReaderT : (r : Set) → (m : Set → Set₁) → {{im : Monad m}} → Monad (ReaderT r m)
+  monadReaderT r m {{im}}  = record
+                       { return = λ x → mkReaderT (λ y → return x)
+                       ; _>>=_ = λ m k → mkReaderT (λ r → runReaderT m r >>= λ a → runReaderT (k a) r)
+                       ; lidentity = λ a f → trustMe
+                       ; ridentity = λ m₁ → trustMe
+                       ; assoc = λ m₁ f g → trustMe
+                       }
+
 postulate
-  ReaderT : Set → (Set → Set₁) → Set → Set₁
-  runReaderT : ∀ {r m a} → ReaderT r m a → r → m a
-  ask : {r : Set} {m : Set → Set₁} {{_ : Monad m}} → ReaderT r m r
   Entity : Set → Set
   instance functorReaderT : (r : Set) → (m : Set → Set₁) → Functor (ReaderT r m)
-  instance monadReaderT : (r : Set) → (m : Set → Set₁) → Monad (ReaderT r m)
   instance functorMonad : ∀ {m : Set → Set₁}{{_ : Monad m}} → Functor m
   IO : Set → Set₁
   instance monadIO : Monad IO
@@ -72,7 +96,11 @@ postulate
   throwError : ∀ {e a : Set} {m : Set → Set₁} {{_ : Monad m }} → e → m a
   Error : Set
   err401 : Error
- 
+  
+
+ask : {r : Set} {m : Set → Set₁} {{_ : Monad m}} → ReaderT r m r
+ask = mkReaderT return
+
 Handler = ExceptT Error IO
 PublicHandler = ReaderT ConnectionPool Handler 
 PrivateHandler = ReaderT (Entity User) PublicHandler
@@ -82,7 +110,10 @@ postulate
   instance monadPrivateHandler : Monad PrivateHandler
   instance monadHandler : Monad Handler
   instance monadPublicHandler : Monad PublicHandler
-  
+  throwErrorAnything : ∀ {e a : Set} {m : Set → Set₁}
+    {{_ : Monad m }} {h : m a} → throwError err401 ≡ h
+  askAndIgnore : ∀ {a : Set} → (h : PrivateHandler a) →
+    ask >>= const h ≡ h  
 
 data Natural {A : Set}
   (F G : Set → Set₁)
@@ -112,24 +143,44 @@ postulate
     ∀ {a b} {A : Set a} {B : A → Set b} {f g : (x : A) → B x} →
     (∀ x → f x ≡ g x) → f ≡ g
 
--- Follows directly from the actual return definition (return a ≡ \r -> a)
-postulate lemma1 : ∀ {a : Set} →
-            (h : PrivateHandler a) →
-            ask >>= const h ≡ h
 
-lemma2 : ∀ {a : Set} → (h : PrivateHandler a) →
-  (monadPrivateHandler Monad.>>= ask)
-    (λ r → (monadPrivateHandler Monad.>>= ask) (λ r₁ → h))
-  ≡ (monadPrivateHandler Monad.>>= ask) (λ r → h)
-lemma2 h rewrite lemma1 h | lemma1 h = refl
+lemma1 : ∀ {a : Set} {p : UserStatus → Bool} {u : Entity User}
+  {h : PrivateHandler a} →
+   if p (userStatus (entityVal u))
+   then ask >>= (λ x → h)
+   else throwError err401
+   ≡ h
+lemma1 {a}{p}{u}{h} with p (userStatus (entityVal u)) 
+... | true = askAndIgnore h
+... | false = throwErrorAnything {e = Error}
 
-checkRoleIdempotent : ∀ {a : Set} {p : Bool}
+lemma2 : ∀ {a : Set} {p : UserStatus → Bool} {u : Entity User}
+  {h : PrivateHandler a} → 
+    (if p (userStatus (entityVal u)) then
+       ask >>= (λ r → if p (userStatus (entityVal r))
+                      then h
+                        else throwError err401)
+                      else throwError err401)
+      ≡ (if p (userStatus (entityVal u)) then h else throwError err401)
+lemma2 {a} {p} {u} {h} with p (userStatus (entityVal u))
+... | true rewrite sym (askAndIgnore h) =
+  cong (Monad._>>=_ monadPrivateHandler ask)
+       (Extensionality (λ x → lemma1{p = p}))
+... | false = refl
+
+checkRoleIdempotent : ∀ {a : Set} {p : UserStatus → Bool}
   {t : (Set → Set₁) → Set → Set₁}
   {e : Entered {a = a} PrivateHandler PrivateHandler
     {{functorPrivateHandler}} {{functorPrivateHandler}} t } →
-  enter {a = a} {t = t} (checkRole (const p))
-    ≡ enter (ver (checkRole (const p)) (checkRole (const p)))
-checkRoleIdempotent {p = true} =
-  cong enter (cong NT (sym (Extensionality lemma2)))
-checkRoleIdempotent {p = false} =
-  cong enter (cong NT refl)
+  enter {a = a} {t = t} (checkRole p)
+    ≡ enter (ver (checkRole p) (checkRole p))
+checkRoleIdempotent {p = p} =
+  cong enter
+    (cong NT
+      (sym
+        (Extensionality
+          (λ h → cong
+            (Monad._>>=_ monadPrivateHandler ask)
+              (Extensionality
+                (λ u →
+                  lemma2{p = p}{u}{h}))))))

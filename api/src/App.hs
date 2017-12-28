@@ -10,6 +10,10 @@ import Control.Monad.Logger (runStdoutLoggingT)
 import Data.Time
 import Control.Concurrent
 import Data.Text(Text)
+--import qualified  Data.Text.IO as T
+import Data.Text.Encoding
+import qualified Data.ByteString.Char8 as BS
+--import Servant.Docs
 import Network.Wai.Middleware.Cors
 
 import qualified Model
@@ -43,6 +47,18 @@ app = do
 
   forkIO $ runStdoutLoggingT $ TickTack.run pool
   return $ serveWithContext api ctx (Api.Main.server pool cs jwt)
+
+showLayout :: IO ()
+showLayout = do
+  pool <- getConnectionPool
+  k <- generateKey
+  let cs = defaultCookieSettings
+         { cookieMaxAge = Just $ secondsToDiffTime 3600 }
+      jwt = defaultJWTSettings k
+      ctx = Api.Auth.authContext pool
+            :. cs :. jwt :. EmptyContext
+      api = Proxy :: Proxy Api.Main.API
+  BS.putStrLn $ encodeUtf8 $ layoutWithContext api ctx
 
 
 startApp :: IO ()

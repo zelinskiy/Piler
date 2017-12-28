@@ -65,6 +65,7 @@ library
                      , servant-auth
                      , servant-auth-server
                      , servant-server
+                     , servant-docs
                      , string-conversions
                      , text
                      , time
